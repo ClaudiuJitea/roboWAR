@@ -1,0 +1,14 @@
+# Godot
+.godot/
+/android/
+*.translation
+
+# Build output (published as GitHub release assets)
+exports/
+
+# Tooling leftovers
+__pycache__/
+*.pyc
+*.blend1
+*.blend@
+.DS_Store
