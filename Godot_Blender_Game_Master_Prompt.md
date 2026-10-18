@@ -15,7 +15,7 @@ I am attaching four images. If filenames differ, identify them by their contents
 - Reference A — image(2).png: elevated arena view with white rectangular structures, cobalt-blue floor sections, yellow hazard markings, dark enemy crowds, two light-colored fighters, and a cyan electrical beam effect.
 - Reference B — image(3).png: another view of the same arena aesthetic, two fighters with colored ground indicators, purple energy, scattered debris, and approaching enemies.
 - Reference C — image(4).png: the clearest arena composition reference, with two armed fighters firing at enemies, white modular industrial obstacles, blue floor panels, the large white “03” floor marking, yellow accents, and dark rails or conduits.
-- Reference D — image(5).png, the LAST attachment: the fighter design reference. It shows six armored characters named MAGNUS, ALBERT, THEO, IRIS, SEREN, and NADIA, including smaller views that demonstrate their appearance from the gameplay camera.
+- Reference D — image(5).png, the LAST attachment: the fighter design reference. It shows the six armored characters, now named BASTION, RONIN, MARSHAL, NOVA, HEX, and KESTREL (the sheet still labels them with their earlier names, in that order), including smaller views that demonstrate their appearance from the gameplay camera.
 
 Use A–C for environment, framing, scale relationships, enemy crowd appearance, lighting, and combat readability. Use D as the primary authority for all playable fighter models. The fighters must have the detailed armored design in D, rather than the simple cube-bodied player placeholders visible in A–C.
 
@@ -103,12 +103,12 @@ Create a shared humanoid base, skeleton, and material system; then give each fig
 
 | Fighter | Required appearance | Primary attack | Special ability |
 | --- | --- | --- | --- |
-| Magnus | Blue armor accents, heavier stance, bulky rotary minigun | Rapid sustained fire with spin-up and heat management | Temporary overdrive with improved firing and cooling |
-| Albert | Orange accents, glowing orange energy sword | Three-hit melee combo with clear arcs | Short forward dash slash with piercing damage |
-| Theo | Yellow/gold accents, compact sci-fi pistol | Fast, accurate pistol fire | Timed deployable shield that blocks enemy projectiles, with visible health |
-| Iris | Cyan/teal accents, long twin-rail weapon | Charged piercing rail shot and bright cyan trail | Chain-lightning pulse linking nearby enemies |
-| Seren | Purple accents, glowing gauntlets, energy rings and holographic forms | Traveling purple energy bolts | Temporary gravity field that slows and pulls enemies |
-| Nadia | Red accents, long scoped rifle | Slower high-damage precision shots | Charged penetrating shot with a targeting line |
+| Bastion | Blue armor accents, heavier stance, bulky rotary minigun | Rapid sustained fire with spin-up and heat management | Temporary overdrive with improved firing and cooling |
+| Ronin | Orange accents, glowing orange energy sword | Three-hit melee combo with clear arcs | Short forward dash slash with piercing damage |
+| Marshal | Yellow/gold accents, compact sci-fi pistol | Fast, accurate pistol fire | Timed deployable shield that blocks enemy projectiles, with visible health |
+| Nova | Cyan/teal accents, long twin-rail weapon | Charged piercing rail shot and bright cyan trail | Chain-lightning pulse linking nearby enemies |
+| Hex | Purple accents, glowing gauntlets, energy rings and holographic forms | Traveling purple energy bolts | Temporary gravity field that slows and pulls enemies |
+| Kestrel | Red accents, long scoped rifle | Slower high-damage precision shots | Charged penetrating shot with a targeting line |
 
 Names, colors, and main weapon silhouettes come from D. The ability behavior above is this project's design specification. Preserve color identity in visor emission, weapon accents, selection UI, and effects. Ground markers distinguish players independently of fighter colors: player one yellow, player two cyan, companion dashed or otherwise clearly distinct.
 
@@ -121,7 +121,7 @@ Use MCP to execute reproducible, idempotent Blender operations in manageable sta
 Production sequence:
 
 1. Block out one base fighter and compare its silhouette against D from front, side, and the intended Godot camera angle.
-2. Create a polished Magnus first as the style benchmark, including minigun and materials.
+2. Create a polished Bastion first as the style benchmark, including minigun and materials.
 3. Create armor plates with modeled thickness, controlled bevels, correct normals, and clean shading.
 4. Build the other five variants and weapons while preserving the established quality.
 5. Rig with a shared bone hierarchy and consistent rest pose. Include pelvis, spine, chest, neck/head, arms, hands, legs, and feet, plus weapon sockets.
@@ -130,9 +130,9 @@ Production sequence:
 
 Use material slots such as armor_white, undersuit_dark, accent, visor_emissive, weapon_metal, and energy_emissive. Use portable PBR materials; bake procedural detail if it cannot export reliably. Keep tiny surface detail secondary to shapes visible at gameplay scale.
 
-Provisional budgets: roughly 8,000–18,000 triangles per hero including typical gear; up to 25,000 for Magnus and his minigun if profiling permits; roughly 500–2,000 per common enemy. Limit hero material count where practical, reuse materials, and generate lower-detail meshes if required. Adjust budgets using measured frame time.
+Provisional budgets: roughly 8,000–18,000 triangles per hero including typical gear; up to 25,000 for Bastion and his minigun if profiling permits; roughly 500–2,000 per common enemy. Limit hero material count where practical, reuse materials, and generate lower-detail meshes if required. Adjust budgets using measured frame time.
 
-Required animation coverage: idle, forward/backward/side movement or an appropriate reusable locomotion set, primary attack, special cast/attack, dodge, hit reaction, death, and victory. Add melee combo clips for Albert, minigun spin for Magnus, charge poses for Iris/Nadia, and casting for Seren. Rifle and minigun grips need believable two-hand placement. For local co-op, add downed and revive visuals.
+Required animation coverage: idle, forward/backward/side movement or an appropriate reusable locomotion set, primary attack, special cast/attack, dodge, hit reaction, death, and victory. Add melee combo clips for Ronin, minigun spin for Bastion, charge poses for Nova/Kestrel, and casting for Hex. Rifle and minigun grips need believable two-hand placement. For local co-op, add downed and revive visuals.
 
 Use in-place locomotion controlled by Godot. Keep gameplay timing independent of cosmetic animation playback; synchronize fire, melee windows, and cast moments through explicit events. Layer upper-body aiming over movement where practical. Use consistent clip names and a documented animation manifest.
 
@@ -154,7 +154,7 @@ Use responsive acceleration and stopping, consistent collision sliding, a short 
 
 Implement a common damage contract: source, team, damage, hit position, knockback, damage type, and critical state. Friendly fire is disabled. A hit must not apply duplicate damage from multiple callbacks. Piercing attacks maintain a per-attack hit set and stop at solid walls unless an explicit ability says otherwise.
 
-Use validated ray queries for instant-hit weapons, swept collision for fast traveling projectiles, and explicit attack-window hit volumes for melee. Albert can hit each target once per combo swing. Enemy attacks require visible windups and enforceable hit windows.
+Use validated ray queries for instant-hit weapons, swept collision for fast traveling projectiles, and explicit attack-window hit volumes for melee. Ronin can hit each target once per combo swing. Enemy attacks require visible windups and enforceable hit windows.
 
 Every weapon needs distinct attack cadence, audiovisual identity, impacts, cooldown or heat behavior, and balance. Include muzzle flashes, tracers, sword trails, electrical arcs, energy rings, small debris bursts, restrained hit flashes, knockback, and subtle recoil. Render cyan lightning inspired by A and purple effects inspired by B. Keep attack telegraphs visible through effect-heavy moments.
 
@@ -210,7 +210,7 @@ Compare in-engine screenshots with the references at an equivalent elevated angl
 
 1. Environment audit and reference breakdown: inspect installed tools, confirm Blender MCP capabilities, establish project structure, and record assumptions.
 2. Playable graybox: arena collision/navigation, camera, one controllable fighter, one weapon, enemies, damage, pause, and restart.
-3. Visual benchmark: finished Magnus made through Blender MCP, one polished arena section, real lighting/materials, export/import validation, and reference comparison.
+3. Visual benchmark: finished Bastion made through Blender MCP, one polished arena section, real lighting/materials, export/import validation, and reference comparison.
 4. Full combat roster: remaining fighters, weapons, animations, enemy archetypes, boss, companion, and local co-op.
 5. Complete game loop: ten waves, upgrades, menus, HUD, audio, settings, saves, victory/defeat, and results.
 6. Polish and delivery: performance profiling, visual corrections, gameplay testing, reproducible asset pipeline, and runnable export.
