@@ -7,7 +7,7 @@ func _initialize() -> void:
 
 func run() -> void:
  var game=load("res://scenes/main.tscn").instantiate(); root.add_child(game)
- game.selected=[2,0]; game.mode=0; game.start_run(); game.spawn_left=0; game.wave_wait=9999  # Theo: pistol, range 20
+ game.selected=[2,0]; game.mode=0; game.start_run(); game.spawn_left=0; game.wave_wait=9999  # Marshal: pistol, range 20
  for e in game.enemies.duplicate(): game.enemies.erase(e); e.queue_free()
  var h=game.heroes[0]; h.invulnerable=999; h.input_id=0
  for o in game.heroes.slice(1): o.global_position=Vector3(30,0,30)

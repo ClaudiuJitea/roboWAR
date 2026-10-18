@@ -71,7 +71,7 @@ var loadout: Array = []  # signature weapon first, then the shared guns
 var spin_nodes: Array[Node3D] = []
 var spin_speed := 0.0
 var stance := "gun"
-const STANCES := {"gun":"aim","blade":"aim_blade","sniper":"aim_sniper","rail":"aim_rail","pistol":"aim_pistol","heavy":"aim_heavy","cast":"aim_cast","shoulder":"aim_shoulder"}
+const STANCES := {"gun":"aim","blade":"aim_blade","sniper":"aim_sniper","rail":"aim_rail","pistol":"aim_pistol","heavy":"aim_heavy","cast":"aim_cast","shoulder":"aim_shoulder","launcher":"aim_launcher"}
 var laser: MeshInstance3D
 var laser_dot: MeshInstance3D
 var bolt_timer := -1.0
@@ -113,7 +113,7 @@ var move_tick := Callable()
 var move_cleanup := Callable()  # frees the move's scene props if it ends early
 var move_lock := false      # input and AI paused: the fighter only does what the move says
 var move_steer := false     # the move turns the body itself (spins, blinks, aimed shots)
-var move_lift := 0.0        # extra model height (Iris's jump)
+var move_lift := 0.0        # extra model height (Nova's jump)
 const WEAPON_KIT := "res://assets/models/weapons.glb"
 static var _weapon_kit: PackedScene
 

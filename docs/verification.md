@@ -385,3 +385,68 @@ At 1920 × 1080 on Intel Iris Xe, a warmed four-second Forward+ run with 73 live
 - **Cleanup:** 70 evidence screenshots that nothing referenced were removed. The `fighters/*_showcase.png` renders were kept, because `make_portraits.py` builds the menu portraits from them. The reference image `4.png`, six `.blend1` Blender backups, `__pycache__` folders and stale `.import` files were also removed. `source_art/` and `docs/` now carry a `.gdignore`, so Godot no longer imports raw MP3s or README media. The project went from 76 MB to 51 MB, not counting `.godot/` and `exports/`.
 - **Builds:** `export_presets.cfg` has a **Windows** preset (x86_64, separate `.pck`, no code signing, no rcedit resource edits) beside **Linux**. Output goes to `exports/windows/` and `exports/linux/`. The Linux build was launched headless; the Windows `.exe` is a valid PE32+ x86-64 file, but Wine is not installed here, so it was not launched. Both are published as GitHub release assets rather than committed (the Windows executable is 109 MB, over GitHub's 100 MB file limit).
 - **README:** rewritten, with gameplay footage recorded by `tests/record_gameplay.gd` through Godot's movie maker: 24 s of Magnus and Nadia (both AI) against a mixed crowd, Magnus cycling minigun, rocket, shotgun, rifle and SMG. `docs/media/gameplay.webp` (960 px, 15 fps, 9 MB) plays inline; `docs/media/gameplay.mp4` holds the full-quality clip. `docs/media/roster.png` and `weapons.png` come from the menu portraits and Blender renders.
+
+## Machine gun redesign (2026-10-17)
+
+- Magnus's minigun is replaced by a chunky belt-fed machine gun from the user's reference sheet (`W_minigun`, traced at 4 mm per pixel, scaled 1.3× for Magnus). It has a slanted stock with an orange cheek block and butt plate, a slate receiver with a feed-cover seam, an orange carry handle on two posts, a belt of orange and silver rounds feeding from an orange ammo box into the receiver, a raked grip with an orange trigger, a handguard with two rows of orange vents and an underside rail, a silver barrel and gas tube, a front sight and a folded-down bipod. The game shows it as MACHINE GUN; the internal id stays `minigun`, so sounds, the Bullet Hurricane special and the saved data are unchanged. The spin flag and the `Spin_minigun` barrel cluster are gone.
+- **Hold:** the old 'heavy' stance braced the left glove on the side of the minigun's 30 cm receiver, which would float beside the slim machine gun. `build_fighters.py` now puts the left glove on the carry handle (`MG_HANDLE`, (0, -.221, .39) in weapon space after scaling), in both the hip carry and Magnus's showcase pose. Reload reaches down to the ammo box. The solver turns the chest 0.34 rad, within its 0.36 limit. All six fighters, the hero shots and the menu portraits were rebuilt.
+- All seven Godot checks pass. The first gameplay run after the reimport hung until its 400 s timeout; it then passed three times in a row in about 2.5 s. Renders: `evidence/machinegun_redesign.png`, `evidence/machinegun_ingame.png`.
+
+## Real machine gun and rifle sounds (2026-10-17)
+
+- Eight new ElevenLabs takes were generated: four machine-gun bursts, two single rifle shots and two rifle bursts. As with the SMG, burst prompts gave realistic gunfire; one single-shot prompt came back near silent.
+- **Machine gun** (`minigun.ogg`): the last shot of a 12-round burst with shots about 75 ms apart, a real belt-fed rhythm. It has a single transient, 19% of its energy below 200 Hz and a 42 ms decay, so shots stay distinct at 18 rounds per second. It replaces the old sci-fi minigun burst sample.
+- **Rifle** (`rifle.ogg`): one heavy AK-style shot with its natural outdoor echo, kept at 0.47 s. It has a single transient, a 15 ms attack and a 108 ms decay.
+- `generate_audio.py`: both use the new realistic prompts and `LAST_SHOT`. **Bug fixed** in `last_shot_start`: an echo hump inside one shot (its envelope dipping to 43% and rising again) was taken as a new shot, which cut the rifle's crack off. A new shot must now follow a gap below 30% of the peak and reach 80% of it. The SMG and machine-gun cuts came out unchanged.
+
+## Hand cannon redesign (2026-10-17)
+
+- Theo's pistol (`W_pistol`) is now a chunky revolver hand cannon from the user's reference sheet, traced at 1.9 mm per pixel and scaled 1.16×. It has a raked orange grip with a dark panel and screws, a hammer spur, a slate frame, a flat-shaded fluted silver cylinder bulging out of the frame with orange chamber marks, a heavy silver barrel slab with a dark top rib and front and rear sights, an under-lug with orange dashes, a silver ejector rod with a rail under it, and a trigger guard with an orange trigger. The accent is orange `f2a01e`. The game now calls it HAND CANNON (was SIDEARM); the id stays `pistol`. The 'pistol' stance wraps the left glove around the right fist, so the hold needed no fighter rebuild. The muzzle is at `(0, -.641, .05)`. Theo's hero shot and menu portrait were re-rendered. Renders: `evidence/handcannon_redesign.png`, `evidence/handcannon_ingame.png`.
+- **Test fix:** `tests/gameplay.gd` hung on its "clear miss" check. A failed `assert` stops a headless script in the debugger, so it looks like a hang. The game and the tests share `user://sector03.cfg`, and Auto aim had been switched on there (`autoaim=1.0`), so the deliberate miss snapped onto the robot. The test now turns Auto aim off for its own run; the saved settings are left alone. It then passed three times in a row. This also explains the earlier one-off hang after the machine-gun rebuild.
+
+### Hand cannon sound
+- `pistol` SFX replaced: ElevenLabs magnum-revolver prompt, six takes compared by envelope and spectrum; take with one sharp crack, 74% energy below 200 Hz and a tail gone by ~250 ms kept (`source_art/audio/raw/pistol.mp3`), trimmed to .45 s. `SFX_GAIN` pistol .7 → .95.
+- All seven tests pass; Linux and Windows exports and zips rebuilt.
+- Replaced again on request ("choose something realistic"): the magnum take measured as a dull thump (1% energy above 2.5 kHz). Eight new takes scored against the accepted rifle/machine gun/sniper takes (5-14% crack, 50-70% body); the handgun range take g1 fits (11-15% crack, 56% body). Its last shot is sliced (`LAST_SHOT`), .45 s, -13.7 LUFS. Tests pass, exports and zips rebuilt.
+
+### Plasma katana redesign
+- `W_sword` rebuilt from the reference sheet: dark faceted blade (9 straight chunks along the sori curve) with a raised spine ridge and a glowing orange cutting edge that runs round the kissaki; gold habaki with a glowing gem on the spine side, tall dark tsuba, gold fuchi, square dark tsuka with diagonal gold wraps and a gold kashira. A faint plasma haze (alpha .07) keeps the blade readable from the top-down camera, where Albert's edge-down guard shows mostly the spine.
+- Fittings sit ~.17 m ahead of the grip origin so they clear Albert's .29 m deep glove; the tsuka runs back to .40 m, so `BLADE_SUPPORT` (left glove at .22) is still on it. No fighter rebuild needed.
+- `Part.prism` gained a `smooth` flag (flat-shaded blade facets).
+- Checks: `blade_cut` kill cam (LIVE CUT PASS, `evidence/killcam_blade_cut.png`), all seven headless tests pass. Albert's showcase, `assets/ui/albert.png` and `docs/media/roster.png` re-rendered. Renders: `evidence/katana_redesign.png`, `evidence/katana_ingame.png`.
+
+### Rail rifle redesign
+- `W_railrifle` rebuilt from the reference sheet, traced from its side view at 4.4 mm per pixel and scaled 1.15x: slate receiver with a dark vented panel and orange strip, scope with orange rings and a big objective box, twin rails (slate caps over glowing cyan cores, a cyan field between them) with four orange clamp rings and dark tips, toothed under-rail, orange magazine with a dark window and glowing cyan base, raked dark pistol grip with an orange heel, skeleton stock with an orange cheek riser and a tall buttplate.
+- The stock is squeezed to ~.39 m so it clears the hip-level 'rail' hold; the magazine sits under the stance's left glove (support -.34), a magwell grip, so no fighter rebuild was needed. Muzzle at the rail tips.
+- Checks: in-game captures with Iris (`evidence/railrifle_ingame.png`), all seven headless tests pass; Iris's showcase, `assets/ui/iris.png` and `docs/media/roster.png` re-rendered; render `evidence/railrifle_redesign.png`.
+
+### Arc gauntlets redesign
+- `caster_hand.py` (shared by `W_gauntlet` and Seren's mirrored left glove) rebuilt from the reference sheet: chunky slate forearm bracer with rear and wrist cuffs, a hazard-striped orange/dark band, orange top panel with a slot and glowing vents on the palm side; slate back-of-hand plate with three glowing studs, palm emitter ring; four fingers with orange knuckle plates, slate and dark segments and glowing purple tips; slate thumb with a glowing tip. The holo panel is unchanged. Material keys are now slate / inset / orange / glow (weapons: SLATE, INSET, A['rifle'], G['gauntlet']; fighters: matching caster_* materials).
+- Seren rebuilt alone with `FIGHTERS=seren` (~1 min); hand frame and grip unchanged, so the 'cast' stance is untouched.
+- Checks: in-game captures (`evidence/gauntlet_ingame.png`), render `evidence/gauntlet_redesign.png`, all seven headless tests pass; Seren's showcase, `assets/ui/seren.png` and `docs/media/roster.png` re-rendered.
+
+### Shared railgun = rail rifle
+- `W_railgun` (the railgun every operative carries, 'sniper' stance) is now built from the same code as `W_railrifle` (loop over both ids in `build_weapons.py`); the old ceramic railgun is gone. The model's stock end (~.40 m) and scope height (~.35 m) sit close to the sniper stance anchors (.335 / .31), so it shoulders with the scope at the visor; the left glove lands on the magazine.
+- Checks: all six operatives captured holding it (`evidence/railgun_ingame.png`), all seven headless tests pass.
+
+### Grenade launcher redesign
+- `W_grenade` rebuilt from the reference sheet as a revolver-drum launcher, traced from its side view at 2.3 mm per pixel and scaled 1.3x: silver barrel with a green glowing muzzle ring, dark clamp with a ribbed vertical foregrip, faceted slate drum with orange end bands, six chambers on its face and an orange cradle, stepped receiver with a hazard stripe and a red-dot sight, orange vents, orange trigger and raked pistol grip, skeleton stock with an orange cheek riser and buttplate stripe.
+- New 'launcher' stance (build_fighters.py, actor.gd STANCES, data.gd grenade): shouldered like the rifles with the right hand 8 cm closer to the body and the left glove out on the foregrip (support -.55), so the drum stays in view. All six fighters rebuilt (aim/recoil/reload_launcher).
+- Checks: all six operatives captured holding it (`evidence/grenade_ingame.png`), `capture_weapons` grenades still launch from the muzzle and blast the group (`evidence/weapon_grenade.png`), all seven headless tests pass; render `evidence/grenade_redesign.png`.
+
+### Plasma caster redesign
+- `W_plasma` rebuilt from the reference sheet, traced from its side view at 3.2 mm per pixel: twin emitter prongs with glowing purple tips and dark sleeves, light grey shell over the front half with a long glowing plasma cell window (purple bars), dark lower body with a slotted rail, dark receiver with a light top band, hazard stripe, sight, orange tabs and vents, grey magazine, orange trigger and raked orange pistol grip, skeleton stock with an orange top block and dark buttplate. Muzzle between the prong tips.
+- Sized so the shared 'gun' stance's left glove (support -.25) sits on the lower fore-end just ahead of the magazine, under the cell window: no fighter rebuild.
+- Checks: in-game captures (`evidence/plasma_ingame.png`), `capture_weapons` plasma orbs leave the prongs and hit the group (`evidence/weapon_plasma.png`), all seven headless tests pass; render `evidence/plasma_redesign.png`.
+
+### Operative callsigns
+- The Six renamed to callsigns that fit their roles: Magnus -> Bastion (heavy gunner), Albert -> Ronin (blade master), Theo -> Marshal (gunslinger), Iris -> Nova (rail specialist, Halo Array star volleys), Seren -> Hex (arc caster), Nadia -> Kestrel (marksman). Changed in `Data.HEROES`, code comments, tests, every Blender/Python generator (HEROES, BULK, per-name poses and stances), the models (`assets/models/<callsign>.glb`), portraits (`assets/ui/<callsign>.png`), the fighter .blend files, showcase renders, README and `docs/asset_manifest.md`. Earlier entries in this log keep the old names.
+- All six fighters rebuilt so the rig nodes carry the new names (`Grip_<Name>`; Godot finds them by prefix). Portraits, `docs/media/roster.png` and `evidence/menu.png` re-rendered.
+
+### Rifle sound (realistic)
+- Eight new ElevenLabs takes (M4, AK field recording, soldier in a field, 7.62 battle rifle) scored against the accepted gun takes; the battle-rifle take's last shot has a 6 ms attack, 12% crack (the old one 5%) and a natural ~220 ms tail, and is kept (`LAST_SHOT`, .45 s, -14.3 LUFS).
+
+### Cleanup and release
+- Removed stray captures nothing references (`evidence/weapon_{railgun,rifle,rocket,shotgun,smg}.png`, `evidence/fighters/seren_gameplay.png`, `evidence/loadout_0.png`).
+- README gameplay clip re-recorded (machine gun, rocket, grenade, shotgun, rifle, plasma, railgun, SMG) and `docs/media/weapons.png` rebuilt from the seven redesigned shared guns.
+- All eight headless tests pass (gameplay, roster, revive, archetypes, progression, aim_line, cinematic, specials).

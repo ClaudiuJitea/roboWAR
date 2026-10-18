@@ -557,7 +557,7 @@ func weapon_tag(actor: Node3D, text: String, color: Color) -> void:
 	for t in weapon_tags:
 		if t[0]==actor and is_instance_valid(t[1]): t[1].queue_free(); t[2].queue_free()
 	weapon_tags=weapon_tags.filter(func(t): return t[0]!=actor)
-	# arena HUD panel (dark or light) framed in the operative's own colour (Nadia red, Iris cyan...);
+	# arena HUD panel (dark or light) framed in the operative's own colour (Kestrel red, Nova cyan...);
 	# `color` (the item's colour) is only the fallback for a non-hero actor
 	var pal: Dictionary=_hud_palette()
 	var hero_color: Color=Data.COLORS[actor.hero_id] if actor is SectorActor and actor.hero else color

@@ -1,6 +1,6 @@
 extends RefCounted
 
-const HEROES := ["Magnus", "Albert", "Theo", "Iris", "Seren", "Nadia"]
+const HEROES := ["Bastion", "Ronin", "Marshal", "Nova", "Hex", "Kestrel"]
 const COLORS := [Color("1678df"), Color("ff6a20"), Color("f4b52a"), Color("19c5d1"), Color("9545cf"), Color("d22b43")]
 const HP := [155.0, 135.0, 105.0, 100.0, 108.0, 95.0]
 const SPEED := [5.0, 6.2, 6.4, 5.7, 5.9, 5.7]
@@ -14,15 +14,15 @@ const WEAPONS := [
  {"id":"shotgun","stance":"gun","mag":6,"reload":1.8,"name":"SHOTGUN","kind":"hitscan","rate":.72,"damage":10.0,"pellets":9,"spread":.3,"range":10.0,"pierce":0,"tracer":.02,"color":Color("ffa24a"),"sfx":"shotgun","shake":.22,"knock":2.6,"shells":true},
  {"id":"railgun","stance":"sniper","mag":6,"reload":1.8,"name":"RAILGUN","kind":"rail","charge":.3,"rate":.32,"damage":95.0,"range":36.0,"color":Color("6fe8ff"),"sfx":"rail","shake":.3,"knock":3.0},
  {"id":"rocket","stance":"shoulder","mag":1,"reload":.95,"name":"ROCKET","kind":"rocket","rate":1.0,"damage":75.0,"radius":3.4,"speed":26.0,"color":Color("ff6a3c"),"sfx":"rocket","shake":.1,"knock":5.0},
- {"id":"grenade","stance":"gun","mag":8,"reload":2.0,"name":"GRENADE","kind":"grenade","rate":.85,"damage":60.0,"radius":3.0,"range":13.0,"color":Color("9be35a"),"sfx":"grenade","shake":.06,"knock":4.0},
+ {"id":"grenade","stance":"launcher","mag":8,"reload":2.0,"name":"GRENADE","kind":"grenade","rate":.85,"damage":60.0,"radius":3.0,"range":13.0,"color":Color("9be35a"),"sfx":"grenade","shake":.06,"knock":4.0},
  {"id":"plasma","stance":"gun","mag":40,"reload":1.8,"name":"PLASMA","kind":"plasma","rate":.19,"damage":16.0,"radius":1.1,"speed":32.0,"color":Color("b06cff"),"sfx":"plasma","shake":.03,"knock":.8},
 ]
 const PLAYER_COLORS := [Color("f2c230"), Color("33c6e8")]  # slot 0 = you / P1, slot 1 = partner / P2
 # Signature weapons from "The Six" sheet: each operative's weapon 1 (the 7 shared guns follow as 2-8).
 const SIGNATURES := [
- {"id":"minigun","stance":"heavy","name":"MINIGUN","kind":"hitscan","mag":150,"reload":2.6,"rate":.055,"damage":8.0,"pellets":1,"spread":.1,"range":17.0,"pierce":0,"tracer":.024,"color":Color("4f9dff"),"sfx":"minigun","shake":.035,"knock":.35,"shells":true,"spin":true},
+ {"id":"minigun","stance":"heavy","name":"MACHINE GUN","kind":"hitscan","mag":150,"reload":2.6,"rate":.055,"damage":8.0,"pellets":1,"spread":.1,"range":17.0,"pierce":0,"tracer":.024,"color":Color("4f9dff"),"sfx":"minigun","shake":.035,"knock":.35,"shells":true},
  {"id":"sword","stance":"blade","name":"PLASMA KATANA","kind":"melee","mag":0,"reload":0.0,"rate":.48,"damage":36.0,"radius":3.2,"arc":1.2,"color":Color("ff8a2a"),"sfx":"sword","shake":.12,"knock":3.0},
- {"id":"pistol","stance":"pistol","name":"SIDEARM","kind":"hitscan","mag":12,"reload":1.0,"rate":.19,"damage":26.0,"pellets":1,"spread":.02,"range":20.0,"pierce":0,"tracer":.03,"color":Color("ffc94a"),"sfx":"pistol","shake":.06,"knock":1.0,"shells":true},
+ {"id":"pistol","stance":"pistol","name":"HAND CANNON","kind":"hitscan","mag":12,"reload":1.0,"rate":.19,"damage":26.0,"pellets":1,"spread":.02,"range":20.0,"pierce":0,"tracer":.03,"color":Color("ffc94a"),"sfx":"pistol","shake":.06,"knock":1.0,"shells":true},
  {"id":"railrifle","stance":"rail","name":"RAIL RIFLE","kind":"rail","mag":8,"reload":1.8,"charge":.4,"rate":.3,"damage":80.0,"range":34.0,"color":Color("3ff0e6"),"sfx":"rail","shake":.25,"knock":2.5},
  {"id":"gauntlet","stance":"cast","name":"ARC GAUNTLETS","kind":"plasma","mag":30,"reload":1.5,"rate":.2,"damage":20.0,"radius":1.3,"speed":30.0,"color":Color("b45cff"),"sfx":"bolt","shake":.03,"knock":1.0},
  {"id":"sniper","stance":"sniper","name":"SNIPER","kind":"hitscan","mag":5,"reload":2.0,"rate":.8,"damage":75.0,"pellets":1,"spread":0.0,"range":36.0,"pierce":2,"tracer":.05,"color":Color("ff4a5a"),"sfx":"sniper","shake":.18,"knock":3.0,"shells":false,"laser":true,"bolt":true},

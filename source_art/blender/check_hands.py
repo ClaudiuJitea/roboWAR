@@ -12,7 +12,7 @@ SUPPORT={'aim_blade':None,'slash_1':B,'slash_2':B,'slash_3':B,'chiburi':B,
 TWO_HANDED={'slash_1':(5,11),'slash_2':(5,11),'slash_3':(6,18),'chiburi':(6,16)}
 GUNS=('aim','aim_sniper','aim_heavy','aim_pistol','aim_cast','aim_rail')
 only=[x for x in os.environ.get('FIGHTERS','').lower().split(',') if x]
-for hero in [h for h in ['magnus','albert','theo','iris','seren','nadia'] if not only or h in only]:
+for hero in [h for h in ['bastion','ronin','marshal','nova','hex','kestrel'] if not only or h in only]:
     bpy.ops.wm.open_mainfile(filepath='/home/clau/dev/RoboWar/source_art/blender/%s.blend'%hero)
     sc=bpy.context.scene
     for c in bpy.data.collections:
@@ -25,10 +25,10 @@ for hero in [h for h in ['magnus','albert','theo','iris','seren','nadia'] if not
     # arm chains: (piece, bone) pairs whose rest distance must survive posing (arm stays in one piece)
     chains=[(('R_glove','R_hand'),('R_wrist_band','R_forearm')),(('R_forearm_plate','R_forearm'),('R_elbow','R_forearm')),(('R_elbow','R_forearm'),('R_upper_arm','R_upper_arm')),
             (('L_glove','L_hand'),('L_wrist_band','L_forearm')),(('L_elbow','L_forearm'),('L_upper_arm','L_upper_arm'))]
-    grip=Vector((.56*{'magnus':1.26,'albert':.96,'seren':.95}.get(hero,1.0),-.15,.64))  # grip_point() in build_fighters.py
+    grip=Vector((.56*{'bastion':1.26,'ronin':.96,'hex':.95}.get(hero,1.0),-.15,.64))  # grip_point() in build_fighters.py
     out=[]; worst_r=[0.0,0.0]; worst_pad=[1.0,'']; worst_chain=['']; worst_lift=[0.0,'']; worst_elbow=[-9.0,'']
     for clip,off in SUPPORT.items():
-        if clip in ('aim_blade','slash_1','slash_2','slash_3','chiburi') and hero!='albert': continue  # the katana is Albert's only
+        if clip in ('aim_blade','slash_1','slash_2','slash_3','chiburi') and hero!='ronin': continue  # the katana is Ronin's only
         act=next((a for a in bpy.data.actions if a.name.split('.')[0]==clip),None)
         if not act: continue
         rig.animation_data.action=act

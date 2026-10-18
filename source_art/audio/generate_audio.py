@@ -13,12 +13,14 @@ API = 'https://api.elevenlabs.io/v1'
 
 # name: (prompt, requested seconds, trimmed max seconds, loudness target LUFS)
 SFX = {
-    'minigun': ('Single short burst from a futuristic sci-fi minigun, three rapid mechanical shots, punchy and dry, no music', .6, .32, -14),
+    # machine gun and rifle: real gunfire bursts, keeping the last shot (LAST_SHOT)
+    'minigun': ('Heavy machine gun firing a long burst, powerful booming 7.62 rounds, rhythmic rapid fire with a rolling outdoor echo, realistic military recording', 1.6, .16, -14),
     'sword': ('Energy sword swing, quick plasma blade whoosh with a bright electric hum, sci-fi, dry', .7, .45, -15),
-    'pistol': ('One crisp futuristic laser pistol shot, short punchy zap, sci-fi game sound effect, dry', .5, .3, -15),
+    # hand cannon: real handgun range takes beat "magnum" prompts, which come back as dull thumps; the last shot is kept (LAST_SHOT)
+    'pistol': ('Police officer firing a handgun three times outdoors, loud realistic pistol shots with a sharp crack and quick echo, no ricochet', 3.0, .45, -13),
     'rail': ('Railgun discharge, powerful electric crack and magnetic zap with a short metallic ring, sci-fi weapon', 1.2, .9, -14),
     'bolt': ('Arcane energy bolt launched from a gauntlet, purple magic whoosh with a soft electric sparkle, sci-fi', .8, .5, -16),
-    'rifle': ('AAA video game assault rifle single shot, aggressive punchy crack layered with a mechanical action clack and a bassy tail, one shot only', .8, .34, -14),
+    'rifle': ('Battle rifle 7.62 NATO gunshots, three slow shots outdoors, powerful sharp crack and thunderous body with a long natural tail, documentary sound recording', 3.0, .45, -14),
     # single-shot SMG prompts come back near silent; a full-auto burst sounds right, so its last shot is kept (LAST_SHOT)
     'smg': ('Submachine gun firing a quick full-auto burst of rapid 9mm shots, very fast rate of fire, loud punchy reports and mechanical rattle, realistic recording', 1.0, .15, -16),
     'shotgun': ('One single loud shotgun blast, huge punchy boom with a short sharp tail, gunshot only, no pump, no reload, no click, no shell sounds', 1.0, .5, -12),
@@ -42,7 +44,7 @@ SFX = {
     'wave': ('Industrial facility alarm, short two-tone klaxon warning for a new enemy wave, sci-fi', 1.8, 1.6, -17),
     'ui': ('Clean minimal UI click, soft digital tick for a menu button, very short', .5, .12, -20),
 }
-LAST_SHOT = {'smg'}  # burst takes: keep only the final shot and its natural tail
+LAST_SHOT = {'smg', 'minigun', 'rifle', 'pistol'}  # burst takes: keep only the final shot and its natural tail
 MUSIC_PROMPT = ('Driving electronic action loop for a top-down sci-fi arena shooter, industrial synth bass, '
                 'tight drums, tense but upbeat, instrumental, no vocals, seamless loop')
 
@@ -55,7 +57,8 @@ def post(path, payload, key):
 
 
 def last_shot_start(src):
-    """Seconds where the last shot of a burst begins: 8 ms before the envelope's last upward crossing of half its peak."""
+    """Seconds where the last shot of a burst begins: 8 ms before the envelope's last upward crossing of half its peak
+    that follows a real gap (below 30% of the peak) and reaches 80% of the peak, so an echo hump is not a new shot."""
     import numpy as np
     sr = 44100
     x = np.frombuffer(subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', src, '-f', 'f32le', '-ac', '1', '-ar', str(sr), '-'],
@@ -63,8 +66,13 @@ def last_shot_start(src):
     hop = int(.005 * sr)
     env = np.convolve(np.abs(x), np.ones(441) / 441, 'same')[::hop]
     half = env.max() * .5
-    rises = [i for i in range(1, len(env)) if env[i - 1] < half <= env[i]]
-    return max(0.0, rises[-1] * hop / sr - .008)
+    rises, gap = [], True
+    for i in range(1, len(env)):
+        if env[i] < env.max() * .3:
+            gap = True
+        if env[i - 1] < half <= env[i] and gap and env[i:i + 8].max() >= env.max() * .8:
+            rises.append(i); gap = False
+    return max(0.0, rises[-1] * hop / sr - .008) if rises else 0.0
 
 
 def master(src, dst, max_s, lufs, loop=False, start=None):

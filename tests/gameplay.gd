@@ -6,6 +6,7 @@ func _initialize() -> void:
 func run() -> void:
  var game=load("res://scenes/main.tscn").instantiate()
  root.add_child(game)
+ game.settings.autoaim=0.0  # the hit checks aim by hand; a saved Auto aim setting would lock onto the robot
  game.start_run()
  game.spawn_left=0; game.wave_wait=9999
  var hero=game.heroes[0]

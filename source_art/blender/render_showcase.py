@@ -9,17 +9,17 @@ from mathutils import Matrix, Vector
 HERE=os.path.dirname(os.path.abspath(__file__))
 ROOT=os.path.abspath(os.path.join(HERE,'..','..'))
 OUT=os.path.join(ROOT,'evidence','fighters')
-GUN={'magnus':'minigun','albert':'sword','theo':'pistol','iris':'railrifle','seren':'gauntlet','nadia':'sniper'}
-BULK={'magnus':1.26,'albert':.96,'seren':.95}  # build_fighters.py BULK (grip_point)
+GUN={'bastion':'minigun','ronin':'sword','marshal':'pistol','nova':'railrifle','hex':'gauntlet','kestrel':'sniper'}
+BULK={'bastion':1.26,'ronin':.96,'hex':.95}  # build_fighters.py BULK (grip_point)
 # camera position (fighter faces -Y, its right hand is +X), look-at height, focal length: low angles looking up,
 # all from the fighter's left so every operative is seen side-on, aiming toward the right of the card
 CAMS={
-    'magnus':((-3.8,-2.4,0.70),0.95,50),
-    'albert':((-3.7,-2.5,0.80),1.20,36),
-    'theo':((-3.1,-3.3,1.10),1.10,52),
-    'iris':((-3.7,-2.5,0.75),0.95,48),
-    'seren':((-3.7,-2.6,0.75),1.10,48),
-    'nadia':((-3.6,-2.6,0.55),0.75,52),
+    'bastion':((-3.8,-2.4,0.70),0.95,50),
+    'ronin':((-3.7,-2.5,0.80),1.20,36),
+    'marshal':((-3.1,-3.3,1.10),1.10,52),
+    'nova':((-3.7,-2.5,0.75),0.95,48),
+    'hex':((-3.7,-2.6,0.75),1.10,48),
+    'kestrel':((-3.6,-2.6,0.55),0.75,52),
 }
 names=os.environ.get('HERO_FILTER',','.join(GUN)).split(',')
 for name in names:

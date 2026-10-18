@@ -47,7 +47,7 @@ var offers: Array[Dictionary] = []
 var sfx_pool: Array[AudioStreamPlayer] = []
 var tones := {}
 # Per-sound trims so rapid or very short clips do not dominate the mix.
-const SFX_GAIN := {"minigun":.55,"smg":.45,"pistol":.7,"ui":.5,"switch":.6,"damage":.7,"windup":.9,"wave":1.2,"explosion":1.1,"shatter":.3,"disintegrate":.4,"plasma":.6,"destroyed_1":1.0,"destroyed_2":1.0,"destroyed_3":1.0,"blade_hit":.85,"sniper":1.1,"rack":.7}
+const SFX_GAIN := {"minigun":.55,"smg":.45,"pistol":.95,"ui":.5,"switch":.6,"damage":.7,"windup":.9,"wave":1.2,"explosion":1.1,"shatter":.3,"disintegrate":.4,"plasma":.6,"destroyed_1":1.0,"destroyed_2":1.0,"destroyed_3":1.0,"blade_hit":.85,"sniper":1.1,"rack":.7}
 var music: AudioStreamPlayer
 # Perspective follow camera, pitched ~55 degrees like the reference shots.
 const CAM_OFFSET := Vector3(0,27,19)

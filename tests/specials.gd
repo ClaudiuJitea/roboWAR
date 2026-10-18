@@ -1,6 +1,6 @@
 extends SceneTree
 # Every operative's special move: surrounded by robots, right click must hurt the crowd, run to its end and
-# hand control back. Albert is tested twice: spread out (Hundred Cuts) and pressed in close (Kaiten-giri).
+# hand control back. Ronin is tested twice: spread out (Hundred Cuts) and pressed in close (Kaiten-giri).
 
 var passed := 0
 
@@ -46,13 +46,13 @@ func _case(game, hero_id: int, radius: float, label: String) -> void:
 
 func run() -> void:
  var game=load("res://scenes/main.tscn").instantiate(); root.add_child(game)
- await _case(game,0,3.0,"Magnus Bullet Hurricane")
- await _case(game,1,6.0,"Albert Hundred Cuts")
- await _case(game,1,2.2,"Albert Kaiten-giri")
- await _case(game,2,5.0,"Theo Dead Eye")
- await _case(game,3,4.0,"Iris Halo Array")
- await _case(game,4,4.0,"Seren Singularity")
- await _case(game,5,1.6,"Nadia Orbital Lance")
+ await _case(game,0,3.0,"Bastion Bullet Hurricane")
+ await _case(game,1,6.0,"Ronin Hundred Cuts")
+ await _case(game,1,2.2,"Ronin Kaiten-giri")
+ await _case(game,2,5.0,"Marshal Dead Eye")
+ await _case(game,3,4.0,"Nova Halo Array")
+ await _case(game,4,4.0,"Hex Singularity")
+ await _case(game,5,1.6,"Kestrel Orbital Lance")
  game.queue_free(); await create_timer(.1).timeout
  if passed!=7: print("SPECIALS FAIL: %d of 7 cases finished" % passed); quit(1); return
  print("SPECIALS PASS")

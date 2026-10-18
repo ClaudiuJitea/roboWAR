@@ -2,7 +2,7 @@
 
 | Asset | Source | Status |
 | --- | --- | --- |
-| Magnus, Albert, Theo, Iris, Seren, Nadia `.glb` | `source_art/blender/build_fighters.py` and matching `.blend` | Rigged armored models; six distinct weapons/colors, 16 clips each |
+| Bastion, Ronin, Marshal, Nova, Hex, Kestrel `.glb` | `source_art/blender/build_fighters.py` and matching `.blend` | Rigged armored models; six distinct weapons/colors, 16 clips each |
 | Fighter previews | `source_art/blender/render_fighters.py` | Front, side, gameplay angle for all six |
 | Arena geometry and materials | `scripts/arena.gd` | Procedural modular industrial arena |
 | Enemy and boss visuals | `scripts/actor.gd` | Procedural low-detail dark automata |

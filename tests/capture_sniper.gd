@@ -1,5 +1,5 @@
 extends SceneTree
-# Nadia aims, fires and cycles the bolt: evidence/sniper_sequence.png
+# Kestrel aims, fires and cycles the bolt: evidence/sniper_sequence.png
 
 func _initialize() -> void:
  call_deferred("run")

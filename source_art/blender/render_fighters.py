@@ -4,7 +4,7 @@ from mathutils import Matrix, Vector
 ROOT=os.path.abspath(os.path.join(os.path.dirname(__file__),'..','..'))
 OUT=os.path.join(ROOT,'evidence','fighters')
 os.makedirs(OUT,exist_ok=True)
-names=tuple(os.environ.get('HERO_FILTER','magnus,albert,theo,iris,seren,nadia').split(','))
+names=tuple(os.environ.get('HERO_FILTER','bastion,ronin,marshal,nova,hex,kestrel').split(','))
 for name in names:
     bpy.ops.wm.open_mainfile(filepath=os.path.join(os.path.dirname(__file__),name+'.blend'))
     scene=bpy.context.scene
@@ -12,7 +12,7 @@ for name in names:
         if '_Assets' in col.name and col.name not in scene.collection.children:
             scene.collection.children.link(col)
     # mount the operative's starting gun (same mapping as Data.HERO_WEAPON) on its Grip socket
-    gun={'magnus':'minigun','albert':'sword','theo':'pistol','iris':'railrifle','seren':'gauntlet','nadia':'sniper'}[name]  # signature weapons (Data.SIGNATURES)
+    gun={'bastion':'minigun','ronin':'sword','marshal':'pistol','nova':'railrifle','hex':'gauntlet','kestrel':'sniper'}[name]  # signature weapons (Data.SIGNATURES)
     with bpy.data.libraries.load(os.path.join(os.path.dirname(__file__),'weapons.blend')) as (src,dst):
         dst.objects=[n for n in src.objects if n in ('W_'+gun,'Spin_'+gun)]
     grip=next((o for o in bpy.data.objects if o.name.startswith('Grip_')),None)
@@ -22,7 +22,7 @@ for name in names:
     for t in rig.animation_data.nla_tracks: t.mute=True  # rest pose unless a pose clip is chosen below
     for b in rig.pose.bones: b.rotation_mode='XYZ'; b.rotation_euler=(0,0,0)
     # each portrait shows the operative's signature stance (same clips Godot uses)
-    pose={'magnus':'aim_heavy','albert':'aim_blade','theo':'aim_pistol','iris':'aim_rail','seren':'aim_cast','nadia':'aim_sniper'}[name]
+    pose={'bastion':'aim_heavy','ronin':'aim_blade','marshal':'aim_pistol','nova':'aim_rail','hex':'aim_cast','kestrel':'aim_sniper'}[name]
     act=next((a for a in bpy.data.actions if a.name.split('.')[0]==pose),None)
     if act: rig.animation_data.action=act
     scene.frame_set(1); bpy.context.view_layer.update()
@@ -32,7 +32,7 @@ for name in names:
     for w in dst.objects:
         if grip and w.parent is None:
             # Grip rest position (build_fighters.py); the saved empty matrix can be stale, so use it directly
-            rest=Matrix.Translation((.56*{'magnus':1.26,'albert':.96,'seren':.95}.get(name,1.0),-.15,.64))  # grip_point() in build_fighters.py
+            rest=Matrix.Translation((.56*{'bastion':1.26,'ronin':.96,'hex':.95}.get(name,1.0),-.15,.64))  # grip_point() in build_fighters.py
             w.matrix_world=deform@rest  # same rigid deform the meshes get
     scene.render.engine='BLENDER_EEVEE'
     world=bpy.data.worlds.new('PreviewWorld'); world.use_nodes=True
@@ -48,8 +48,8 @@ for name in names:
     camera_data=bpy.data.cameras.new('PreviewCamera'); camera=bpy.data.objects.new('PreviewCamera',camera_data); scene.collection.objects.link(camera)
     scene.camera=camera; camera_data.type='ORTHO'; camera_data.ortho_scale=2.8
     target=Vector((0,-.25,1.0))
-    # Albert: slightly higher three-quarter view so the katana's curve and length read
-    front=(3.4,-4.4,3.4) if name=='albert' else (3,-5,2.7)
+    # Ronin: slightly higher three-quarter view so the katana's curve and length read
+    front=(3.4,-4.4,3.4) if name=='ronin' else (3,-5,2.7)
     # portrait: three-quarter view from the fighter's left, like "The Six" sheet, so weapons read in profile
     # pointing to the viewer's right (menu cards: make_portraits.py)
     for view,loc in [('front',front),('side',(5,0,1.55)),('gameplay',(4,-5,6.0)),('portrait',(-3.6,-4.6,2.6))]:

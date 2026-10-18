@@ -1,5 +1,5 @@
 extends SceneTree
-# Albert runs a 3-hit blade combo into a group: frames saved to evidence/blade_combo.png
+# Ronin runs a 3-hit blade combo into a group: frames saved to evidence/blade_combo.png
 
 func _initialize() -> void:
  call_deferred("run")

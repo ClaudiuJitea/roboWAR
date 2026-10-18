@@ -2,13 +2,13 @@ extends RefCounted
 # Special moves (right click / left trigger): one crowd-clearing move per operative. Each is a short timeline on the
 # actor (actor.move_at events plus an optional per-frame actor.move_tick), run on game time, so hitstop slows it
 # and pause stops it. The fighter is invulnerable through the committed part of every move.
-#   0 Magnus  BULLET HURRICANE  two full turns with the minigun firing all round, then a ground-slam shockwave
-#   1 Albert  HUNDRED CUTS      blinks between up to 6 robots marking each, chiburi, then they all split at once
+#   0 Bastion  BULLET HURRICANE  two full turns with the minigun firing all round, then a ground-slam shockwave
+#   1 Ronin  HUNDRED CUTS      blinks between up to 6 robots marking each, chiburi, then they all split at once
 #             KAITEN-GIRI       with 3+ robots within reach: a 360 degree plasma whirlwind instead
-#   2 Theo    DEAD EYE          time slows, up to 8 robots are marked, then a crit for each in quick succession
-#   3 Iris    HALO ARRAY        a jump and two star volleys of piercing rail beams
-#   4 Seren   SINGULARITY       a black hole at the aim point pulls robots together, then collapses into arc lightning
-#   5 Nadia   ORBITAL LANCE     paints a lane with the laser; a barrage of strikes runs down it
+#   2 Marshal    DEAD EYE          time slows, up to 8 robots are marked, then a crit for each in quick succession
+#   3 Nova    HALO ARRAY        a jump and two star volleys of piercing rail beams
+#   4 Hex   SINGULARITY       a black hole at the aim point pulls robots together, then collapses into arc lightning
+#   5 Kestrel   ORBITAL LANCE     paints a lane with the laser; a barrage of strikes runs down it
 
 const Data = preload("res://scripts/data.gd")
 const BOSS_SCALE := .4  # specials clear crowds; they do not delete the Warden
@@ -69,7 +69,7 @@ static func _glow_mat(c: Color, alpha: float, energy := 2.5) -> StandardMaterial
 	m.albedo_color=Color(c.r*energy,c.g*energy,c.b*energy,alpha); m.cull_mode=BaseMaterial3D.CULL_DISABLED
 	return m
 
-# ---------------------------------------------------------------- 0 Magnus: Bullet Hurricane
+# ---------------------------------------------------------------- 0 Bastion: Bullet Hurricane
 static func _hurricane(a) -> void:
 	var g=a.game; var mul:=power(a); var c: Color=Data.COLORS[0]
 	var w: Dictionary=a.loadout[0]
@@ -108,7 +108,7 @@ static func _hurricane(a) -> void:
 		a._play_anim("special",.3); a.move_steer=false
 	a.move_at(2.0,slam)
 
-# ---------------------------------------------------------------- 1 Albert: Hundred Cuts / Kaiten-giri
+# ---------------------------------------------------------------- 1 Ronin: Hundred Cuts / Kaiten-giri
 static func _hundred_cuts(a) -> void:
 	var g=a.game; var mul:=power(a); var c: Color=a.loadout[0].color
 	var marks: Array=nearest(a,a.global_position,9.0,6)
@@ -193,7 +193,7 @@ static func _kaiten(a) -> void:
 		g.fx._ring(a.global_position,c,4.4,.3); g.hitstop(.1); a.move_steer=false
 	a.move_at(.62,finish)
 
-# ---------------------------------------------------------------- 2 Theo: Dead Eye
+# ---------------------------------------------------------------- 2 Marshal: Dead Eye
 static func _dead_eye(a) -> void:
 	var g=a.game; var mul:=power(a); var c: Color=a.loadout[0].color
 	var marks: Array=nearest(a,a.global_position,20.0,8)
@@ -228,7 +228,7 @@ static func _dead_eye(a) -> void:
 		a.move_at(.22+i*gap,shot)
 	a.move_at(a.move_end-.05,func() -> void: a.move_steer=false)
 
-# ---------------------------------------------------------------- 3 Iris: Halo Array
+# ---------------------------------------------------------------- 3 Nova: Halo Array
 static func _halo(a) -> void:
 	var g=a.game; var mul:=power(a); var c: Color=a.loadout[0].color
 	tag(a,"HALO ARRAY")
@@ -255,7 +255,7 @@ static func _halo(a) -> void:
 	a.move_at(.4,first)
 	a.move_at(.62,second)
 
-# ---------------------------------------------------------------- 4 Seren: Singularity
+# ---------------------------------------------------------------- 4 Hex: Singularity
 static func _singularity(a) -> void:
 	var g=a.game; var mul:=power(a); var c: Color=a.loadout[0].color
 	tag(a,"SINGULARITY")
@@ -330,7 +330,7 @@ static func _singularity(a) -> void:
 		if is_instance_valid(s.orb): s.orb.queue_free()
 	a.move_at(2.3,collapse)
 
-# ---------------------------------------------------------------- 5 Nadia: Orbital Lance
+# ---------------------------------------------------------------- 5 Kestrel: Orbital Lance
 static func _orbital(a) -> void:
 	var g=a.game; var mul:=power(a); var c: Color=Data.COLORS[5]
 	tag(a,"ORBITAL LANCE")

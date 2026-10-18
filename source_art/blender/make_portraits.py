@@ -9,7 +9,7 @@ from PIL import Image
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SRC = os.path.join(ROOT, 'evidence', 'fighters')
 OUT = os.path.join(ROOT, 'assets', 'ui')
-NAMES = ['magnus', 'albert', 'theo', 'iris', 'seren', 'nadia']
+NAMES = ['bastion', 'ronin', 'marshal', 'nova', 'hex', 'kestrel']
 SIZE, PAD = 256, 4
 
 shots = {n: Image.open(os.path.join(SRC, n + '_showcase.png')).convert('RGBA') for n in NAMES}

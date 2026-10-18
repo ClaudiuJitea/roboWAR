@@ -1,5 +1,5 @@
 extends SceneTree
-# Blade kill cam, predicted: Albert kills 8 robots, then starts a cut that will finish the 9th. The kill cam must
+# Blade kill cam, predicted: Ronin kills 8 robots, then starts a cut that will finish the 9th. The kill cam must
 # start on the swing while the robot is still alive, the real blade must connect (and kill) inside the slowed shot,
 # and the robot is sliced. Saves evidence/killcam_blade_cut.png (12 frames).
 

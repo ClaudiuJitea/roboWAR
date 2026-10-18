@@ -16,9 +16,9 @@ import sys; sys.path.insert(0, HERE)
 from caster_hand import caster_hand
 os.makedirs(OUT, exist_ok=True)
 if bpy.app.background: bpy.ops.wm.read_factory_settings(use_empty=True)
-HEROES = [('Magnus',(0.035,0.26,0.75)),('Albert',(0.98,0.25,0.035)),('Theo',(0.95,0.58,0.025)),('Iris',(0.015,0.66,0.72)),('Seren',(0.42,0.12,0.75)),('Nadia',(0.68,0.025,0.07))]
+HEROES = [('Bastion',(0.035,0.26,0.75)),('Ronin',(0.98,0.25,0.035)),('Marshal',(0.95,0.58,0.025)),('Nova',(0.015,0.66,0.72)),('Hex',(0.42,0.12,0.75)),('Kestrel',(0.68,0.025,0.07))]
 ACTIVE_COLLECTION=None
-BULK={'Magnus':1.26,'Albert':.96,'Seren':.95}
+BULK={'Bastion':1.26,'Ronin':.96,'Hex':.95}
 def grip_point(name):
     # weapon grip = centre of the right fist at rest (arms down); weapons.glb guns have their origin here
     return Vector((.56*BULK.get(name,1.0),-.15,.64))
@@ -117,7 +117,7 @@ def blend_hold(a, b, t):
     for k in set(a['body'])|set(b['body']):
         x=a['body'].get(k,(0,0,0)); y=b['body'].get(k,(0,0,0)); out['body'][k]=tuple(p+(q-p)*t for p,q in zip(x,y))
     if (a['support'] is None)!=(b['support'] is None):
-        # free hand <-> two-handed grip (e.g. Albert's one-handed guard into a two-handed cut): move the glove
+        # free hand <-> two-handed grip (e.g. Ronin's one-handed guard into a two-handed cut): move the glove
         # between the two absolute points, and take the grip exactly at the two-handed key
         pa=a['left'] if a['support'] is None else a['grip']+weapon_frame(a)@a['support']
         pb=b['left'] if b['support'] is None else b['grip']+weapon_frame(b)@b['support']
@@ -298,6 +298,8 @@ def bake(poser, keys):
         out.append((f,poser.solve(blend_hold(a,b,t))))
     return out
 
+MG_HANDLE=(0,-.221,.39)  # left glove on the machine gun's carry handle (weapons.glb W_minigun)
+
 def gun_stance_clips(poser, name):
     """Weapon-class stances plus stance-relative recoil and reload, all solved as holds."""
     k=BULK.get(name,1.0)
@@ -307,20 +309,22 @@ def gun_stance_clips(poser, name):
     stances={
         # shared rifles: shouldered at chest height (clearly above the heavy hip carry), support hand on the fore-end
         'gun':hold((.10*k,-.36,1.20),support=(-.03,-.25,-.06),body={'chest':(.05,0,0)},lpole=out_l),
+        # grenade launcher: shouldered like the rifles, support hand out on the vertical foregrip ahead of the drum
+        'launcher':hold((.10*k,-.26,1.18),support=(-.03,-.55,-.09),body={'chest':(.06,0,0)},lpole=out_l),
         # cheek weld: scope (31 cm over the grip) at the visor, stock in the shoulder, right elbow raised
         'sniper':hold((.08,-.30,1.31),support=(0,-.30,-.07),body={'chest':(.05,0,0),'head':(.10,0,0)},rpole=(1,.25,-.15),lpole=out_l),
-        # Iris: long rail rifle at the hip, support hand far out along the barrel, leaning into it
+        # Nova: long rail rifle at the hip, support hand far out along the barrel, leaning into it
         'rail':hold((.12*k,-.32,1.06),support=(-.02,-.34,-.03),body={'chest':(.08,0,0),'spine':(.04,0,0)},lpole=(-1,.05,-.35)),
-        # Theo: two-handed pro grip, arms extended, pistol just under the eye line; support glove wraps the grip
+        # Marshal: two-handed pro grip, arms extended, pistol just under the eye line; support glove wraps the grip
         'pistol':hold((.07,-.58,1.40),support=(-.17,.03,-.05),body={'chest':(.03,0,0),'head':(.03,0,0)},rpole=(.9,.3,-.8),lpole=(-.9,.3,-.8)),
-        # Magnus: minigun low at the hip, off hand braced on the side of the receiver, leaning forward into it
-        'heavy':hold((.20*k,-.26,.90),support=(-.15,-.17,-.01),body={'chest':(.06,0,0),'spine':(.05,0,0)},
+        # Bastion: belt-fed machine gun low at the hip, off hand gripping the carry handle, leaning forward into it
+        'heavy':hold((.20*k,-.26,.90),support=MG_HANDLE,body={'chest':(.06,0,0),'spine':(.05,0,0)},
                      rpole=(.35,.45,-1),lpole=(-.35,.45,-1)),  # elbows down by the sides: braced, not flared
         # rocket launcher on the right shoulder: tube on the pauldron (centre 1.74 m, beside the visor), right hand on
         # the rear grip, left hand on the forward grip, chest turned a little side-on so the left arm reaches
         'shoulder':hold((.45*k,-.32,1.616),support=(0,-.38,-.09),body={'chest':(0,.30,0),'head':(0,-.26,0)},
                         rpole=(.6,.3,-1),lpole=(-.3,.3,-1)),
-        # Seren: right hand forward, palm up under her holo panel; left hand low and out, its palm glowing
+        # Hex: right hand forward, palm up under her holo panel; left hand low and out, its palm glowing
         'cast':hold((.26*k,-.44,1.12),up=(1,0,0),body={'chest':(.03,0,0)},left=(-.58*k,-.22,.78),lpole=(-.3,.4,-1)),
     }
     clips={}
@@ -352,6 +356,9 @@ def gun_stance_clips(poser, name):
         if key=='pistol':  # fresh magazine into the bottom of the grip
             mag=moved(down,support=(-.02,.06,-.24))
             seat=moved(down,grip=(0,0,.02),support=(-.02,.06,-.15))
+        elif key=='heavy':  # fresh belt box: off hand down to the ammo box, then back up
+            mag=moved(down,support=(-.08,-.22,-.06))
+            seat=moved(down,grip=(0,0,.02),support=(-.08,-.22,.03))
         elif base['support'] is not None:
             mag=moved(down,support=(0,-.06,-.20))
             seat=moved(down,grip=(0,0,.02),support=(0,-.06,-.12))
@@ -373,8 +380,8 @@ def blade_clips(poser, name):
     # chudan-no-kamae: hilt in front of the navel, blade forward and up toward the opponent's throat, edge down
     # ready guard from the sheet: katana low in the right hand, blade forward and down past the right foot,
     # left fist free and out from the body (both hands join the hilt for each cut)
-    guard=hold((.42*BULK['Albert'],-.30,.86),(.46,-.68,-.40),edge=(0,-.3,-1),body={'chest':(.04,.08,0)},
-               left=(-.60*BULK['Albert'],-.18,.74),lpole=(-.3,.4,-1),rpole=(1,.4,-.2))
+    guard=hold((.42*BULK['Ronin'],-.30,.86),(.46,-.68,-.40),edge=(0,-.3,-1),body={'chest':(.04,.08,0)},
+               left=(-.60*BULK['Ronin'],-.18,.74),lpole=(-.3,.4,-1),rpole=(1,.4,-.2))
     breathe=moved(guard,grip=(0,0,.012),body={'chest':(.015,0,0),'head':(-.015,0,0)})
     clips={'aim_blade':bake(poser,[(1,guard),(30,breathe),(60,guard)])}
     over=dict(rpole=(1,.1,.1),lpole=(-1,.1,.1))  # hands high: elbows out to the sides
@@ -412,28 +419,28 @@ def showcase_clip(poser, name):
     kneel=legs(-1.15,1.25,.30,1.50,lz=.10,rz=-.06,rf=.35)  # left knee up, right knee on the ground
     H={
         # braced wide and low in profile, leaning into the minigun, barrels level at the target
-        'Magnus':hold((.12*k,-.42,.94),(0,-1,-.02),support=(-.15,-.17,-.01),
+        'Bastion':hold((.12*k,-.42,.94),(0,-1,-.02),support=MG_HANDLE,
                       body={'spine':(.14,0,0),'chest':(.08,-.06,0),'head':(-.12,.06,0),**legs(-.70,.85,.45,.40,lz=.12,rz=-.10)},
                       rpole=(.35,.45,-1),lpole=(-.5,.3,-1)),
         # deep forward lunge in profile, both hands on the hilt at the belly, the blade aimed forward and just above
         # level (chudan-no-kamae) like the others' weapons, kept close so the whole katana fits the card
-        'Albert':hold((.10,-.28,1.05),(0,-.985,.17),edge=(0,-.17,-.985),support=BLADE_SUPPORT,
+        'Ronin':hold((.10,-.28,1.05),(0,-.985,.17),edge=(0,-.17,-.985),support=BLADE_SUPPORT,
                       body={'spine':(.12,0,0),'chest':(.06,.04,0),'head':(-.06,-.04,0),**legs(-.95,1.10,.60,.30,lz=.10,rz=-.08)},
                       rpole=(1,.3,-.5),lpole=(-1,.3,-.5)),
         # two-handed pistol, staggered stance, sights at the eye
-        'Theo':hold((.04,-.56,1.44),(0,-1,.02),support=(-.17,.03,-.05),
+        'Marshal':hold((.04,-.56,1.44),(0,-1,.02),support=(-.17,.03,-.05),
                     body={'chest':(.02,-.08,0),'head':(.04,.06,0),**legs(-.28,.32,.26,.28,lz=.14,rz=-.16)},
                     rpole=(.9,.3,-.8),lpole=(-.9,.3,-.8)),
         # long rail rifle shouldered in a deep forward lunge
-        'Iris':hold((.10*k,-.36,1.22),(0,-1,-.03),support=(-.03,-.25,-.06),
+        'Nova':hold((.10*k,-.36,1.22),(0,-1,-.03),support=(-.03,-.25,-.06),
                     body={'spine':(.08,0,0),'chest':(.06,0,0),'head':(.06,0,0),**legs(-.85,1.05,.50,.45,lz=.20,rz=-.24)},
                     lpole=(-1,.15,-.55)),
         # caster in profile: right arm reaching out, palm up under the holo panel; left hand drawn back, palm glowing
-        'Seren':hold((.22*k,-.66,1.22),(0,-1,.06),up=(1,0,0),
+        'Hex':hold((.22*k,-.66,1.22),(0,-1,.06),up=(1,0,0),
                      body={'spine':(.10,0,0),'chest':(.04,.10,0),'head':(-.04,-.10,0),**legs(-.70,.85,.40,.35,lz=.12,rz=-.12)},
                      left=(-.52*k,.10,.98),lpole=(-.6,.6,-.6)),
         # sniper on one knee, cheek on the stock
-        'Nadia':hold((.08,-.30,1.31),support=(0,-.30,-.07),body={'chest':(.08,0,0),'head':(.12,0,0),**kneel},
+        'Kestrel':hold((.08,-.30,1.31),support=(0,-.30,-.07),body={'chest':(.08,0,0),'head':(.12,0,0),**kneel},
                      rpole=(1,.25,-.15),lpole=(-1,.15,-.55)),
     }
     return {'showcase':[(1,poser.solve(H[name]))]}
@@ -538,7 +545,7 @@ def rig_parts(objs, name):
         'cast':[(1,{}),(10,{'chest':(-.12,0,0),'weapon':(.25,0,0),'head':(-.12,0,0)}),(23,{})],
     }
     poser=Poser(arm,objs,name)
-    if name=='Albert': clips.update(blade_clips(poser,name))  # the katana is Albert's only
+    if name=='Ronin': clips.update(blade_clips(poser,name))  # the katana is Ronin's only
     clips.update(gun_stance_clips(poser,name))
     clips.update(showcase_clip(poser,name))
     for clip,poses in clips.items():
@@ -565,12 +572,12 @@ def hero(name, rgb):
     def Y(*a,**k): objs.append(cyl(*a,**k))
     # Per-character details taken from "The Six" sheet.
     st={
-        'Magnus':dict(bulk=BULK['Magnus'],eye='wide',helm=None,shoulder='outer_big',forearm=True,hip=False,thigh=False),
-        'Albert':dict(bulk=BULK['Albert'],eye='side',helm=None,shoulder='top',forearm=False,hip=True,thigh=False),
-        'Theo':dict(bulk=1.0,eye='side',helm='L',shoulder='outer',forearm=False,hip=True,thigh=False),
-        'Iris':dict(bulk=1.0,eye='wide',helm='both',shoulder='outer',forearm=False,hip=False,thigh=False),
-        'Seren':dict(bulk=BULK['Seren'],eye='wide',helm='both',shoulder='outer',forearm=False,hip=False,thigh=False),
-        'Nadia':dict(bulk=1.0,eye='side',helm='both',shoulder='outer',forearm=False,hip=True,thigh=True),
+        'Bastion':dict(bulk=BULK['Bastion'],eye='wide',helm=None,shoulder='outer_big',forearm=True,hip=False,thigh=False),
+        'Ronin':dict(bulk=BULK['Ronin'],eye='side',helm=None,shoulder='top',forearm=False,hip=True,thigh=False),
+        'Marshal':dict(bulk=1.0,eye='side',helm='L',shoulder='outer',forearm=False,hip=True,thigh=False),
+        'Nova':dict(bulk=1.0,eye='wide',helm='both',shoulder='outer',forearm=False,hip=False,thigh=False),
+        'Hex':dict(bulk=BULK['Hex'],eye='wide',helm='both',shoulder='outer',forearm=False,hip=False,thigh=False),
+        'Kestrel':dict(bulk=1.0,eye='side',helm='both',shoulder='outer',forearm=False,hip=True,thigh=True),
     }[name]
     bulk=st['bulk']
     sx=.50*bulk  # shoulder pad centre
@@ -642,9 +649,10 @@ def hero(name, rgb):
         C(sign+'_boot_toe',(s*.215*bulk,-.31,.115),(.29*bulk,.15,.14),white,.06)
         C(sign+'_boot_heel',(s*.215*bulk,.13,.09),(.26*bulk,.06,.12),white,.03)
         C(sign+'_boot_sole',(s*.215*bulk,-.10,.015),(.32*bulk,.51,.03),metal,.01)
-    if name=='Seren':  # left caster hand, the mirror twin of W_gauntlet in weapons.glb (worn on the right fist)
+    if name=='Hex':  # left caster hand, the mirror twin of W_gauntlet in weapons.glb (worn on the right fist)
         g=Vector((-.56*bulk,-.15,.64))
-        M={'dark':dark,'white':white,'accent':accent,'glow':glow}
+        M={'slate':mat('caster_slate',(.042,.05,.064),.25,.5),'inset':mat('caster_inset',(.016,.019,.025),.2,.55),
+           'orange':mat('caster_orange',(.888,.354,.013),.1,.4),'glow':glow}  # W_gauntlet's SLATE/INSET/orange
         for i,(c,m) in enumerate(caster_hand(-1)):
             x,y,z=c[1]; p=tuple(g+Vector((x,-z,y)))  # hand frame (fingers -Y, knuckles +Z) -> rest (fingers down, knuckles -Y)
             if c[0]=='box': C('L_glove_caster_%02d'%i,p,(c[2][0],c[2][2],c[2][1]),M[m],c[3])
