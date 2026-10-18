@@ -37,7 +37,7 @@ You need a GPU with Vulkan support for the Forward+ renderer.
 - **Squad play:** solo, with an AI companion, or local co-op on keyboard + pad or two pads. Downed partners can be revived.
 - **Progression:** 17 upgrades between waves and five timed power-ups.
 - **Kill cams:** every 9th kill and the boss get a cinematic: bullet cam, impact zoom, blast crane or blade orbit.
-- **Air support:** every operative can call a visible gunship strafe at the cursor with both mouse buttons (both triggers on a pad), on a separate 35-second cooldown.
+- **Air support:** every operative can call a five-second gunship bombardment at the cursor with both mouse buttons (both triggers on a pad). Twin cannons fire 40 explosive shells and four paired salvos launch eight heavy rockets, with grenade/rocket fireballs, smoke, debris and shockwaves. Separate 35-second cooldown; teammates are safe.
 - **Drone swarm:** middle-click deploys three armored quad-rotors for every operative (right-stick click on a pad). They sweep enemies with ray guns for five seconds, then spread out into kamikaze attacks. Unused drones hover beside you until a new enemy appears. Separate 40-second cooldown; one active swarm per player.
 - **Effects:** voxel shattering, explosions with shockwaves, disintegration under energy weapons, shell casings and tracers.
 - **Audio:** realistic gunfire, sound effects and music generated with ElevenLabs.
@@ -114,7 +114,7 @@ Elites always drop a power-up, and bosses drop four pickups.
 | WASD | Move |
 | Mouse | Aim |
 | Left / right mouse button | Primary / special |
-| Left + right mouse buttons together | Gunship air support at the cursor (35 s cooldown) |
+| Left + right mouse buttons together | 5 s gunship bombardment at the cursor (35 s cooldown) |
 | Middle mouse button | Deploy three ray-gun / kamikaze drones (40 s cooldown) |
 | Space | Dodge |
 | Q / R, 1–8, mouse wheel | Previous / next / pick weapon |
@@ -126,7 +126,7 @@ Elites always drop a power-up, and bosses drop four pickups.
 | --- | --- |
 | Left / right stick | Move / aim |
 | Right / left trigger | Primary / special |
-| Both triggers together | Gunship air support along your aim (35 s cooldown) |
+| Both triggers together | 5 s gunship bombardment along your aim (35 s cooldown) |
 | Right stick click | Deploy three ray-gun / kamikaze drones (40 s cooldown) |
 | South / west face button | Dodge / revive |
 | Left / right bumper | Previous / next weapon |

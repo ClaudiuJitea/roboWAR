@@ -20,7 +20,7 @@ func run() -> void:
   game.cursor_override=game.camera.unproject_position(Vector3(0,0,-3))
   if kind=="ghostline": h._special()
   else: h.call_air_support()
-  var marks: Array=[.45,.74,1.14,1.56] if kind=="ghostline" else [.3,1.05,1.45,1.75]
+  var marks: Array=[.45,.74,1.14,1.56] if kind=="ghostline" else [.9,2.0,3.1,4.45]
   var start: float=game.elapsed
   var frames: Array[Image]=[]
   for mark in marks:

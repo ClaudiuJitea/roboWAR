@@ -53,11 +53,29 @@ func run() -> void:
   h._attack_input(false,false,.016); h._attack_input(true,true,.016)
   assert(active().size()==1 and h.special_timer==0,"a cooling-down chord cannot consume the special instead")
   var victim=game.enemies[-1]
-  advance(support,3.6)
+  advance(support,4.9)
+  assert(not support.is_queued_for_deletion(),"the barrage stays active throughout its fifth second")
+  advance(support,5.1)
   assert(victim.hp<1000,"the strafe damages enemies for every operative")
   assert(support.bursts_fired==support.BURSTS and support.rockets_fired,"the complete pass fires its guns and rockets")
-  assert(support.is_queued_for_deletion(),"the aircraft cleans up after its pass")
+  assert(support.shell_impacts==40 and support.rocket_impacts==8,"all forty explosive shells and eight heavy rockets detonate")
+  assert(support.rockets.all(func(r): return r.done) and support.shells.all(func(r): return r.done),"no ordnance is discarded before impact")
+  assert(support.is_queued_for_deletion(),"the aircraft cleans up at five seconds")
   print("AIR SUPPORT ",game.Data.HEROES[hero]," PASS")
+ # Expanded rocket splash and real explosive-shell damage, with existing upgrade and boss scaling.
+ var heavy=await setup(0,true)
+ var dummy=game.enemies[-1]; dummy.global_position=Vector3(6.5,0,-2)
+ heavy.upgrades.ability_damage=2; heavy.buffs.overcharge=10.0
+ heavy._attack_input(true,true,.016)
+ var barrage=active()[0]; barrage.set_process(false)
+ barrage._damage(Vector3(3,0,-2),barrage.ROCKET_RADIUS,barrage.ROCKET_DAMAGE,6)
+ assert(dummy.hp<900,"heavy rockets reach enemies 3.5m from impact and scale with ability power")
+ dummy.hp=1000; dummy.global_position=Vector3(3,0,-2)
+ barrage._damage(dummy.global_position,barrage.SHELL_RADIUS,barrage.SHELL_DAMAGE,3)
+ assert(is_equal_approx(dummy.hp,1000-52.0*1.4*1.6),"cannon shells deal grenade-strength splash rather than tracer-only hits")
+ dummy.boss=true; dummy.hp=1000
+ barrage._damage(dummy.global_position,barrage.ROCKET_RADIUS,barrage.ROCKET_DAMAGE,6)
+ assert(is_equal_approx(dummy.hp,1000-130.0*1.4*1.6*.4),"boss damage retains support scaling")
  # Left-first presses also work, without consuming the operative's cooling-down special.
  var left=await setup(0)
  left.special_timer=20
@@ -88,19 +106,24 @@ func run() -> void:
  var before: float=support.elapsed; var cooldown: float=h.air_support_timer
  game.state="paused"; support._process(1); h._physics_process(1)
  assert(support.elapsed==before and h.air_support_timer==cooldown,"pause freezes aircraft and cooldown")
- game.state="playing"; advance(support,3.6)
+ game.state="playing"; advance(support,5.1)
  assert(game.heroes[1].hp==ally_hp,"air support cannot hurt a partner standing in the impact zone")
  # A ninth aerial kill keeps the aircraft on screen, then permits the upgrade screen when the pass ends.
  h=await setup(1)
  h._attack_input(true,true,.016); support=active()[0]; support.set_process(false)
  game.kills=8; game.wave=2; game.wave_wait=0; game.enemies[-1].hp=1
- advance(support,1.8)
+ advance(support,2.6)
  assert(game.kills==9 and not game.killcam.active,"aerial kills do not start a weapon kill cam")
  game._process(.016)
  assert(game.state=="playing","a wave-ending pass finishes before upgrades")
- advance(support,3.6); await process_frame
+ advance(support,5.1); await process_frame
  game._process(.016)
  assert(game.state=="upgrade","upgrades follow the completed aircraft pass")
+ # Frame hitches must not drop the final shells/rockets when the five-second lifetime expires.
+ h=await setup(0)
+ h._attack_input(true,true,.016); support=active()[0]; support.set_process(false)
+ for i in range(10): support._process(.5)
+ assert(support.is_queued_for_deletion() and support.shell_impacts==40 and support.rocket_impacts==8,"all scheduled ordnance lands even at two frames per second")
  h=await setup(0)
  h._attack_input(true,true,.016); support=active()[0]
  var stopped: float=support.elapsed
