@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/media/icon.png" alt="Sector 03 icon" width="160">
+
 # roboWAR · Sector 03
 
 **A top-down 3D arena shooter. Six operatives. Five sectors. One rogue intelligence.**
@@ -21,7 +23,7 @@ Built with Godot 4.7.2 (Forward+, Jolt physics) · Windows & Linux · solo, AI c
 1. Download the zip for your system from the [latest release](https://github.com/ClaudiuJitea/roboWAR/releases/latest) and unpack it.
 2. Start the game. Keep the `.pck` file next to the executable.
    - **Windows:** run `Sector03.exe`. The build is unsigned, so SmartScreen may ask you to confirm (*More info → Run anyway*).
-   - **Linux:** run `./Sector03.x86_64` (`chmod +x Sector03.x86_64` first if needed).
+   - **Linux:** run `./Sector03.x86_64` (`chmod +x Sector03.x86_64` first if needed). `Sector03.png` in the zip is the icon for a desktop shortcut.
 3. Choose **Campaign** or **Survival**, pick a squad mode and your operatives, and deploy.
 
 You need a GPU with Vulkan support for the Forward+ renderer.
@@ -180,6 +182,7 @@ source_art/    Blender and Python generators for every asset, plus raw ElevenLab
 tests/         headless gameplay checks and capture scripts
 docs/          design notes, verification log, README media
 evidence/      reference captures written by the capture scripts
+icon.png/.ico  game window and Windows exe icon (original art in source_art/icon/)
 ```
 
 Balance values (weapons, operatives, robots, upgrades) live in `scripts/data.gd`. `docs/verification.md` records every check, benchmark and design change.

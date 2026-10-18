@@ -450,3 +450,7 @@ At 1920 × 1080 on Intel Iris Xe, a warmed four-second Forward+ run with 73 live
 - Removed stray captures nothing references (`evidence/weapon_{railgun,rifle,rocket,shotgun,smg}.png`, `evidence/fighters/seren_gameplay.png`, `evidence/loadout_0.png`).
 - README gameplay clip re-recorded (machine gun, rocket, grenade, shotgun, rifle, plasma, railgun, SMG) and `docs/media/weapons.png` rebuilt from the seven redesigned shared guns.
 - All eight headless tests pass (gameplay, roster, revive, archetypes, progression, aim_line, cinematic, specials).
+
+### App icon
+- New icon from the supplied art (`source_art/icon/icon.jpeg`, 2048 px): white outer corners flood-filled to transparency, saved as `icon.png` (1024 px, project `config/icon`, the game window icon) and `icon.ico` (16-256 px, `config/windows_native_icon` and the Windows preset's `application/icon` with `modify_resources=true`). The default `icon.svg` was removed.
+- Verified: the exported `Sector03.exe` carries six PNG icon resources and the largest is the new icon (extracted with pefile). The Linux zip ships `Sector03.png` for desktop shortcuts. README header shows `docs/media/icon.png`.
