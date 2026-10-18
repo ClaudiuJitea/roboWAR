@@ -28,12 +28,12 @@ func run() -> void:
  assert(game.kills==8,"robot still alive when the shot starts")
  var frames: Array[Image]=[]
  var start:=Time.get_ticks_msec()
- for m in [.1,.3,.5,.7,.9,1.1,1.3,1.5,1.8,2.2,2.8,3.6]:
+ for m in [.1,.7,1.25,1.5,1.8,2.1,2.4,2.7,3.1,3.5,4.0,4.7]:
   while (Time.get_ticks_msec()-start)/1000.0<m: await process_frame
   await RenderingServer.frame_post_draw
   var img: Image=root.get_viewport().get_texture().get_image(); img.resize(640,360); frames.append(img)
   print("t=",m," ts=%.2f" % Engine.time_scale," cut_at=",game.killcam.cut_at," halves=",game.killcam.halves.size()," kills=",game.kills)
- assert(game.kills==9 and game.killcam.cut_at>0,"the blade connected inside the shot and killed the 9th")
+ assert(game.kills==9 and game.killcam.cut_at>0 and not game.killcam._blade_contact.is_empty(),"the animated edge connected and sliced inside the shot")
  var sheet:=Image.create(640*3,360*4,false,frames[0].get_format())
  for i in range(12): sheet.blit_rect(frames[i],Rect2i(0,0,640,360),Vector2i((i%3)*640,(i/3)*360))
  sheet.save_png("res://evidence/killcam_blade_cut.png")

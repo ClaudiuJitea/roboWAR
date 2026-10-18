@@ -6,7 +6,9 @@ const HP := [155.0, 135.0, 105.0, 100.0, 108.0, 95.0]
 const SPEED := [5.0, 6.2, 6.4, 5.7, 5.9, 5.7]
 const DAMAGE := [8.0, 23.0, 17.0, 52.0, 16.0, 55.0]
 const RATE := [0.12, 0.34, 0.20, 1.25, 0.38, 0.94]
-const SPECIAL_CD := [16.0, 10.0, 14.0, 14.0, 16.0, 13.0]
+const SPECIAL_CD := [16.0, 10.0, 14.0, 14.0, 16.0, 16.0]
+const AIR_SUPPORT_COOLDOWN := 35.0
+const DRONE_COOLDOWN := 40.0
 # Swappable weapons (Q / R, keys 1-7, mouse wheel, pad bumpers). Each has a magazine that reloads automatically when empty. kind: hitscan, rail, rocket, grenade, plasma.
 const WEAPONS := [
  {"id":"rifle","stance":"gun","mag":30,"reload":1.4,"name":"RIFLE","kind":"hitscan","rate":.2,"damage":20.0,"pellets":1,"spread":.015,"range":24.0,"pierce":0,"tracer":.03,"color":Color("ffd86a"),"sfx":"rifle","shake":.05,"knock":.6,"shells":true},
@@ -31,7 +33,7 @@ const SIGNATURES := [
 static func loadout(hero_id: int) -> Array:
  return [SIGNATURES[hero_id]] + WEAPONS
 # Each operative's right-click move (scripts/specials.gd).
-const SPECIALS := ["Bullet Hurricane", "Hundred Cuts", "Dead Eye", "Halo Array", "Singularity", "Orbital Lance"]
+const SPECIALS := ["Bullet Hurricane", "Hundred Cuts", "Dead Eye", "Halo Array", "Singularity", "Ghostline"]
 # Robots. boss: has phases, a top-of-screen health bar and a name card. hit: body radius for shot tests. body/eye: tint
 # applied to the shared enemy kit (null keeps the kit's graphite and ember). ids 0-5 are the original roster.
 const ENEMIES := [

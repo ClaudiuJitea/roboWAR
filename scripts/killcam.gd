@@ -1,9 +1,9 @@
 class_name KillCam
 extends Node3D
-# Kill cam: every 9th robot destroyed (and the boss) gets a 4-5 s cinematic, chosen by how it died.
+# Kill cam: every 9th robot destroyed (and the boss) gets a 5-7 s cinematic, chosen by how it died.
 #   BULLET CAM   (guns)       time nearly freezes, the camera rides behind a glowing round from the muzzle to the
 #                             robot, then swings round the suspended wreck as time ramps back.
-#   IMPACT ZOOM  (guns, alt.) fast push-in from the shooter's shoulder onto the robot as it breaks apart.
+#   IMPACT ZOOM  (guns, alt.) push in from the shooter's shoulder as the round flies in, then the robot breaks apart.
 #   BLAST CRANE  (explosives) low inside the blast, craning up and away.
 #   BLADE CUT    (katana)     predicted: when a swing starts that will make the 9th kill, time slows at once and the
 #                             camera comes in on the real cut. A blade kill that was not predicted (e.g. a robot that
@@ -11,20 +11,23 @@ extends Node3D
 #                             side-on to the arc; the blade connects, the robot is sliced in two along the real
 #                             blade plane, the top half slides off and the camera swings round as both halves burn up.
 # Everything runs on the real-time clock (Engine.time_scale is driven here), then hands back to the gameplay
-# camera. It eases in (camera glides over while time slows) and eases out (glides back while time recovers). Letterbox bars and a caption frame the shot; the music dips meanwhile.
+# camera. The action waits while the camera glides in, then plays from its beginning; the camera and time ease
+# back to gameplay together. Letterbox bars and a caption frame the shot; the music dips meanwhile.
 
 const EVERY := 9
 const DURATION := {"bullet":5.0,"zoom":4.1,"crane":4.0,"orbit":5.6}
 const CUT_REPLAY_AT := .6  # real seconds into the blade shot when the replayed swing starts
 const CUT_HOLD := 2.0      # real seconds the two halves stay on screen before they burn up
 const CUT_CLOSE := 1.3     # real seconds the camera holds the close-up on the cut, time nearly frozen
-const EASE_IN := 1.1   # glide from the gameplay view into the shot while time slows down
+const EASE_IN := 1.1   # establish the camera before starting the action clock
 const EASE_OUT := 1.2  # glide back to the gameplay view while time speeds back up
+const SETUP_SCALE := .001  # hold the wind-up and effects while the camera gets into place
 
 var game: Node
 var active := false
 var style := ""
 var t := 0.0  # real seconds since the start
+var shot_time := 0.0  # action clock: starts only once the camera is in place
 var cam: Camera3D
 var killer_pos := Vector3.ZERO
 var muzzle := Vector3.ZERO
@@ -38,7 +41,7 @@ var caption: Label
 var layer: CanvasLayer
 var _gun_alt := 0
 var _impacted := false
-var shot_scale := 1.0  # time scale the current shot asks for; blended with 1.0 at the start and end
+var shot_scale := 1.0  # shot pace after setup; blended back to 1.0 at the end
 var _boom := Callable()  # destroys the held robot (game.enemy_killed); called at the on-screen impact
 # blade cut
 var killer: SectorActor
@@ -48,7 +51,7 @@ var side_sign := 1.0          # which side of the fight the camera films from (t
 var live := false             # blade cut filmed as it happens (predicted at the start of the swing), not a replay
 var cut_from := Vector3.ZERO  # where the swordsman stood when the cut-down started; he lunges in from here
 var cut_spot := Vector3.ZERO
-var cut_at := -1.0            # real time the replayed blade connected (<0 = not yet)
+var cut_at := -1.0            # action-clock time the blade connected (<0 = not yet)
 var cut_radius := 3.0         # camera distance at the moment of the cut, so the swing-round starts there
 var cut_eye := Vector3.ZERO   # camera pose at the moment of the cut, so the push-in starts there
 var cut_look := Vector3.ZERO
@@ -59,11 +62,17 @@ var halves: Array[Node3D] = []
 var half_mats: Array = [[],[]]
 var upper_base := Transform3D.IDENTITY
 var cut_line: MeshInstance3D
+var _blade_previous := PackedVector3Array()
+var _blade_contact := {}  # first actual edge/body contact in the strike, including its sweep direction
+var _cut_requested := false
+var _cut_surfaces: Array[MeshInstance3D] = []
 static var _clip_shader: Shader
+static var _strike_paths := {}  # sampled from the real rig/weapon once, then reused for cinematic footwork
 var _last_us := 0
 var _pull := [1.0,1.0,1.0]  # per camera pose: distance kept clear of walls (fraction of the wanted distance)
 
 func _ready() -> void:
+	process_priority=100  # sample after the AnimationTree has advanced the visible blade pose
 	layer=CanvasLayer.new(); layer.layer=5; add_child(layer)
 	for i in range(2):
 		var r:=ColorRect.new(); r.color=Color(0.02,0.03,0.05,0.96); r.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -99,9 +108,8 @@ func on_kill(e: SectorActor, kills: int, boom: Callable = Callable()) -> bool:
 	_boom=boom
 	victim=e; cut_index=killer.combo; cut_at=-1.0; live=false
 	_begin(kills,e.boss)
-	# bullet cam, impact zoom and the blade cut keep the robot standing (frozen) until the shot connects on screen
-	if style not in ["bullet","zoom","orbit"]: _fire_boom()
-	elif is_instance_valid(e): e._set_flash(false)  # the hit flash is on game time: clear it so the held robot reads
+	# Every style holds the robot until its on-screen impact, including the blast crane.
+	if is_instance_valid(e): e._set_flash(false)  # clear the hit flash so the held robot reads
 	return true
 
 # Called as a blade swing starts: if it will make the 9th kill (or kill the boss), start the blade cut now so the
@@ -123,15 +131,18 @@ func predict_cut(by: SectorActor, w: Dictionary, amount: float) -> void:
 		_boom=Callable()
 		_begin(game.kills+n,e.boss)
 		set_meta("replayed",true)  # the real swing is already under way: nothing to replay
-		cut_spot=cut_from          # and no lunge: he is already in reach
 		return
 
 func _fire_boom() -> void:
-	if _boom.is_valid(): _boom.call()
+	var boom:=_boom
 	_boom=Callable()
+	if boom.is_valid(): boom.call()
 
 func _begin(kills: int, boss: bool) -> void:
-	active=true; t=0.0; _last_us=Time.get_ticks_usec(); _impacted=false; shot_scale=1.0
+	active=true; t=0.0; shot_time=0.0; _last_us=Time.get_ticks_usec(); _impacted=false; shot_scale=SETUP_SCALE
+	_pull=[1.0,1.0,1.0]
+	# Do this in the triggering physics frame: waiting for _process lets a live cut run ahead of the camera.
+	Engine.time_scale=SETUP_SCALE
 	cam=Camera3D.new(); cam.fov=52.0; cam.near=.05; cam.far=200.0; add_child(cam)
 	cam.global_transform=game.camera.global_transform
 	cam.current=true
@@ -139,14 +150,14 @@ func _begin(kills: int, boss: bool) -> void:
 		if is_instance_valid(h): h.invulnerable=maxf(h.invulnerable,3.0)
 	caption.text=("BOSS DOWN" if boss else "KILL #%d" % kills)+"   //   "+{"bullet":"BULLET CAM","zoom":"IMPACT","crane":"BLAST","orbit":"BLADE"}[style]
 	layer.visible=true
-	if style=="bullet": _make_slug()
+	if style in ["bullet","zoom"]: _make_slug()
 	if style=="orbit": _setup_cut()
 	game.play_sfx("windup")
 
 func stop() -> void:
 	if not active: return
-	active=false
 	_fire_boom()
+	active=false
 	Engine.time_scale=1.0
 	if is_instance_valid(cam): cam.queue_free()
 	if is_instance_valid(game.camera): game.camera.current=true
@@ -165,46 +176,43 @@ func _process(delta: float) -> void:
 		if game.state!="paused": stop()
 		return
 	t+=minf(real,.1)  # wall clock, so the shot keeps pace with real time; one hitch moves it at most .1 s
-	var total: float=DURATION[style]
+	var total: float=EASE_IN+DURATION[style]
 	if t>=total: stop(); return
-	# one weight drives everything: 0 = gameplay view at full speed, 1 = the cinematic shot at its own pace
-	var w:=minf(_smooth(clampf(t/(.6 if live else EASE_IN),0,1)),_smooth(clampf((total-t)/EASE_OUT,0,1)))
+	shot_time=maxf(0,t-EASE_IN)
+	var out_weight:=_smooth(clampf((total-t)/EASE_OUT,0,1))
+	var w:=minf(_smooth(clampf(t/EASE_IN,0,1)),out_weight)
 	var shot:=Transform3D.IDENTITY
 	match style:
-		"bullet": shot=_bullet(t)
-		"zoom": shot=_zoom(t)
-		"crane": shot=_crane(t)
-		"orbit": shot=_orbit(t)
-	if style=="orbit": _update_cut(t,total)
+		"bullet": shot=_bullet(shot_time)
+		"zoom": shot=_zoom(shot_time)
+		"crane": shot=_crane(shot_time)
+		"orbit": shot=_orbit(shot_time)
+	if style=="orbit" and t>=EASE_IN: _update_cut(shot_time,DURATION[style])
+	if style=="orbit" and t>=EASE_IN and cut_at<0: _sample_blade()
 	cam.global_transform=game.camera.global_transform.interpolate_with(shot,w)
 	cam.fov=lerpf(game.camera.fov,52.0,w)
-	# a live cut has to slow time at once: the blade connects about 0.2 s of game time after the swing starts
-	var wt:=minf(_smooth(clampf(t/.12,0,1)),_smooth(clampf((total-t)/EASE_OUT,0,1))) if live else w
-	Engine.time_scale=lerpf(1.0,shot_scale,wt)
+	Engine.time_scale=SETUP_SCALE if t<EASE_IN else lerpf(1.0,shot_scale,out_weight)
 	_bars(w)
 
 # ---------------------------------------------------------------- shots
 func _bullet(s: float) -> Transform3D:
-	var start:=EASE_IN*.8  # the round leaves once the camera has settled behind the muzzle
+	var start:=.15  # a short hold at the muzzle, after the camera is fully in place
 	var flight:=1.5
 	var dir:=(target-muzzle); var dist:=dir.length(); dir=dir.normalized() if dist>.01 else Vector3.FORWARD
 	var side:=dir.cross(Vector3.UP).normalized()
 	if s<start+flight:
 		shot_scale=.03
 		var k:=clampf((s-start)/flight,0,1)
-		var p:=muzzle.lerp(target,_smooth(k))
-		if is_instance_valid(slug):
-			slug.global_position=p; slug.look_at(p+dir,Vector3.UP)
-			_update_streak(muzzle,p)
+		var p:=_move_slug(k)
 		var eye:=p-dir*1.5+Vector3.UP*.38+side*.28
-		return _look(eye,p+dir*2.5,sin(s*1.2)*.05)
+		return _look(_clear_of_walls(p,eye,0),p+dir*2.5,sin(s*1.2)*.05)
 	if not _impacted: _impact()
 	# hang on the burst, then swing slowly round the wreck as time ramps back
 	var k2:=clampf((s-start-flight)/(DURATION.bullet-start-flight),0,1)
 	shot_scale=lerpf(.05,.35,_smooth(k2))
 	var back:=-dir.rotated(Vector3.UP,lerpf(0,1.6,_smooth(k2)))
 	var eye:=target+back*lerpf(1.6,3.4,_smooth(k2))*size+Vector3.UP*lerpf(.3,1.3,_smooth(k2))
-	return _look(eye,target,0.0)
+	return _look(_clear_of_walls(target,eye,1),target,0.0)
 
 func _zoom(s: float) -> Transform3D:
 	var hit:=1.5  # the push-in lands, the robot bursts
@@ -214,21 +222,24 @@ func _zoom(s: float) -> Transform3D:
 	var close:=target-dir*2.2*size+Vector3.UP*.5+side*.45
 	var k:=_smooth(clampf(s/hit,0,1))
 	var punch:=0.0
-	if s<hit: shot_scale=.04  # frozen while the camera pushes in on the robot
+	if s<hit:
+		shot_scale=.04
+		_move_slug((s-.3)/(hit-.3))  # show the round leaving the muzzle during the push-in, before impact
 	else:
 		if not _impacted: _impact()
 		shot_scale=lerpf(.06,.3,_smooth(clampf((s-hit)/1.6,0,1)))
 		punch=(1.0-_smooth(clampf((s-hit)/.45,0,1)))*.3  # small kick back on impact, settling
 	var drift:=side*_smooth(clampf((s-hit)/2.0,0,1))*.6  # slow sideways drift while the robot breaks apart
-	return _look(shoulder.lerp(close,k)-dir*punch+drift,target,lerpf(0,-.07,k))
+	return _look(_clear_of_walls(target,shoulder.lerp(close,k)-dir*punch+drift,0),target,lerpf(0,-.07,k))
 
 func _crane(s: float) -> Transform3D:
-	if not _impacted: _impact()
+	if s>0 and not _impacted: _impact()
 	var k:=_smooth(clampf(s/(DURATION.crane-.3),0,1))
 	shot_scale=lerpf(.08,.35,k)
 	var away:=(target-killer_pos); away.y=0; away=away.normalized() if away.length()>.01 else Vector3.FORWARD
 	var eye:=target-away*lerpf(1.4,5.5,k)+Vector3.UP*lerpf(.25,4.5,k)+away.cross(Vector3.UP)*lerpf(.6,1.8,k)
-	return _look(eye,target+Vector3.UP*lerpf(.2,0,k),0.0)
+	var at:=target+Vector3.UP*lerpf(.2,0,k)
+	return _look(_clear_of_walls(at,eye,0),at,0.0)
 
 func _orbit(s: float) -> Transform3D:
 	var dir:=(target-cut_from); dir.y=0; dir=dir.normalized() if dir.length()>.01 else Vector3.FORWARD
@@ -277,12 +288,23 @@ func _clear_of_walls(at: Vector3, eye: Vector3, slot: int) -> Vector3:
 func _setup_cut() -> void:
 	if not is_instance_valid(killer): return
 	cut_from=killer.global_position; cut_n=Vector3.UP; cut_p=Vector3.ZERO; _pull=[1.0,1.0,1.0]
+	_blade_previous=PackedVector3Array(); _blade_contact={}; _cut_requested=false; _cut_surfaces.clear()
+	if is_instance_valid(victim) and is_instance_valid(victim.torso_mesh):
+		# An outstretched arm is touched before the body: use the body crossing for the robot's main split.
+		_cut_surfaces.append(victim.torso_mesh)
 	var flat:=target-cut_from; flat.y=0
 	var dir:=flat.normalized() if flat.length()>.01 else Vector3.FORWARD
-	cut_spot=Vector3(target.x,cut_from.y,target.z)-dir*(1.15+.35*size)
-	if flat.length()<cut_from.distance_to(cut_spot)+.01: cut_spot=cut_from  # already in reach: no step back
+	var body_at:=victim.torso_mesh.to_global(victim.torso_mesh.mesh.get_aabb().get_center()) if is_instance_valid(victim) and is_instance_valid(victim.torso_mesh) else target
+	var contact:=_strike_offset(body_at.y-cut_from.y)
+	var yaw:=atan2(-dir.x,-dir.z)
+	contact=contact.rotated(Vector3.UP,yaw)
+	cut_spot=Vector3(body_at.x-contact.x,cut_from.y,body_at.z-contact.z)
 	killer.cutscene=true; killer.aim=dir; killer.velocity=Vector3.ZERO; killer.target=null
-	if is_instance_valid(victim): victim._set_flash(false)
+	killer.model.rotation=Vector3(0,yaw,0)
+	if not live:  # discard the tail of the original swing; replay the whole cut once the camera is ready
+		killer.swing_time=0; killer.swing_impact=-1; killer.trail_prev.clear()
+	if is_instance_valid(victim):
+		victim._set_flash(false); victim.cutscene=true; victim.velocity=Vector3.ZERO
 	# film from whichever side of the fight has more open floor
 	var mid:=(cut_from+Vector3.UP*.95).lerp(target,.5); var across:=dir.cross(Vector3.UP).normalized()
 	var space:=func(d: Vector3) -> float:
@@ -295,6 +317,42 @@ func _setup_cut() -> void:
 	cam.add_child(warm); warm.position=Vector3(0,0,-.2)
 	get_tree().create_timer(.3,true,false,true).timeout.connect(warm.queue_free)
 
+# The redesigned katana's length and curve need different footing for each combo. Choose the foot position
+# from actual animated edge poses at body height, so the blade crosses the body instead of an arbitrary plane.
+func _strike_offset(height: float) -> Vector3:
+	var key:=killer.hero_id
+	if not _strike_paths.has(key):
+		var probe:=SectorActor.new(); probe.setup(game,true,key,-1); probe.visible=false
+		game.add_child(probe); probe.set_process(false); probe.set_physics_process(false)
+		probe.collision_layer=0; probe.collision_mask=0
+		probe.tree.callback_mode_process=AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+		probe.tree.advance(.5)
+		var skeletons:=probe.model.find_children("*","Skeleton3D",true,false)
+		var attachments:=probe.model.find_children("*","BoneAttachment3D",true,false)
+		var paths: Array=[]
+		for combo in range(3):
+			var samples: Array=[]; probe.replay_cut(combo)
+			for frame in range(90):
+				probe.tree.advance(1.0/240.0)
+				for skeleton in skeletons: skeleton.force_update_all_bone_transforms()
+				for attachment in attachments: attachment.on_skeleton_update()
+				var phase: float=(frame+1)/240.0
+				if phase>=.12 and phase<=.3: samples.append({"time":phase,"edge":probe.blade_edge_points()})
+			paths.append(samples); probe.tree.advance(.8)
+		_strike_paths[key]=paths
+		probe.tree.active=false; probe.queue_free()
+	var best:=INF; var offset:=Vector3(0,height,-2)
+	var strike:=.23 if cut_index==2 else .2
+	for sample in _strike_paths[key][cut_index]:
+		var edge: PackedVector3Array=sample.edge
+		for i in range(1,edge.size()-1):
+			var a:=edge[i]; var b:=edge[i+1]
+			var u:=clampf((height-a.y)/(b.y-a.y),0,1) if absf(b.y-a.y)>.00001 else .5
+			var point:=a.lerp(b,u)
+			var score:=absf(point.y-height)*100+absf(sample.time-strike)*3+absf((i+u)/(edge.size()-1)-.75)*.1
+			if score<best: best=score; offset=point
+	return offset
+
 func _update_cut(s: float, total: float) -> void:
 	if cut_at<0:
 		if is_instance_valid(killer) and not killer.dead and not killer.downed:
@@ -302,9 +360,11 @@ func _update_cut(s: float, total: float) -> void:
 				set_meta("replayed",true); killer.replay_cut(cut_index)
 			if has_meta("replayed"):
 				# lunge in during the wind-up (fumikomi), landing at the strike
-				var k:=clampf((s-CUT_REPLAY_AT)/.55,0,1)
+				var k:=clampf((s-(0.0 if live else CUT_REPLAY_AT))/.55,0,1)
 				killer.global_position=cut_from.lerp(cut_spot,_smooth(k))
-		if s>CUT_REPLAY_AT+2.0: blade_connects(null)  # the swing never landed (fighter downed): cut anyway
+		if s>CUT_REPLAY_AT+2.0 and not _impacted:
+			# A missed/interrupted blade has no cut plane. Finish the held destruction without inventing a slice.
+			cut_at=s; cut_p=target; slide=Vector3.DOWN; _impact()
 		return
 	var h:=s-cut_at
 	if halves.size()==2 and is_instance_valid(halves[0]):
@@ -328,23 +388,59 @@ func _update_cut(s: float, total: float) -> void:
 		_fire_boom(); _clear_halves()
 	if s>total-EASE_OUT and is_instance_valid(killer): killer.cutscene=false  # hand control back as time recovers
 
-# Called by the swordsman on the strike frame of the replayed cut: slices the held robot along the blade plane.
+# Sample the curved edge in rendered animation poses. The physics strike timer may request a cut, but it
+# cannot choose its plane or make the body split before the visible blade actually reaches it.
+func _sample_blade() -> void:
+	if not is_instance_valid(killer) or killer.dead or killer.downed or cut_at>=0: return
+	if killer.loadout.is_empty() or killer.loadout[killer.weapon].kind!="melee": return
+	for skeleton in killer.model.find_children("*","Skeleton3D",true,false): skeleton.force_update_all_bone_transforms()
+	for attachment in killer.model.find_children("*","BoneAttachment3D",true,false): attachment.on_skeleton_update()
+	var edge:=killer.blade_edge_points()
+	if _blade_previous.size()==edge.size() and edge.size()>1 and killer.swing_time>0 and killer.swing_impact<.09:
+		if _blade_contact.is_empty(): _blade_contact=_blade_intersection(_blade_previous,edge)
+		if not _blade_contact.is_empty():
+			if killer.swing_impact>0: killer.land_cut()  # align the filmed damage with visual contact
+			if _cut_requested: _slice_blade()
+	_blade_previous=edge
+
+func _blade_intersection(previous: PackedVector3Array, edge: PackedVector3Array) -> Dictionary:
+	var travel:=0.0
+	for i in range(edge.size()): travel=maxf(travel,edge[i].distance_to(previous[i]))
+	if travel<.000001: return {}
+	# Substeps keep the sweep from tunnelling through a limb on a slow rendered frame.
+	var steps:=clampi(ceili(travel/.025),1,64)
+	for step in range(1,steps+1):
+		var f:=float(step)/steps
+		for i in range(edge.size()-1):
+			var a:=previous[i].lerp(edge[i],f); var b:=previous[i+1].lerp(edge[i+1],f)
+			var blade:=(b-a).normalized()
+			for surface in _cut_surfaces:
+				if not is_instance_valid(surface): continue
+				var hit=surface.mesh.get_aabb().intersects_segment(surface.to_local(a),surface.to_local(b))
+				if hit==null: continue
+				var point: Vector3=surface.to_global(hit)
+				var u:=clampf((point-a).dot(b-a)/maxf(a.distance_squared_to(b),.00000001),0,1)
+				var motion: Vector3=(edge[i]-previous[i]).lerp(edge[i+1]-previous[i+1],u)
+				if motion.length_squared()<.000000000001: continue
+				var normal:=blade.cross(motion.normalized())
+				if normal.length_squared()<.000001: continue
+				return {"point":point,"normal":normal.normalized(),"motion":motion.normalized(),"a":a,"b":b,"segment":i}
+	return {}
+
+# Called at the gameplay strike key. A real swept-edge contact, rather than this timer, defines the slice.
 func blade_connects(by: SectorActor) -> void:
 	if cut_at>=0: return
-	cut_at=t
-	var size_h:=1.35*size
-	cut_p=(victim.global_position if is_instance_valid(victim) else target)+Vector3.UP*size_h*.55
-	var dir:=(target-cut_from); dir.y=0; dir=dir.normalized() if dir.length()>.01 else Vector3.FORWARD
-	var motion:=dir.cross(Vector3.UP)+Vector3.DOWN*.8  # fallback: a diagonal kesa cut
-	var blade:=dir
-	if is_instance_valid(by) and by.trail_prev.size()==2 and by.weapon<by.weapon_nodes.size() and is_instance_valid(by.weapon_nodes[by.weapon]):
-		var tip:=by.muzzle_position(); var hilt:=by.weapon_nodes[by.weapon].global_position.lerp(tip,.18)
-		if tip.distance_to(by.trail_prev[1])>.01: motion=tip-by.trail_prev[1]; blade=tip-hilt
-	var n:=blade.cross(motion)
-	if n.length()<.001: n=dir.cross(Vector3.UP).cross(motion)
-	cut_n=n.normalized()
+	if by!=killer: return
+	_cut_requested=true
+	if not _blade_contact.is_empty(): _slice_blade()
+
+func _slice_blade() -> void:
+	if cut_at>=0 or _blade_contact.is_empty(): return
+	cut_at=shot_time
+	cut_p=_blade_contact.point
+	cut_n=_blade_contact.normal
 	if cut_n.y<0: cut_n=-cut_n
-	if cut_n.y>.97: cut_n=(cut_n+dir*.3).normalized()  # keep a level cut slightly tilted so the top can slide
+	var motion: Vector3=_blade_contact.motion
 	var down:=Vector3.DOWN-cut_n*cut_n.dot(Vector3.DOWN)
 	var along:=motion-cut_n*cut_n.dot(motion)
 	slide=(down.normalized()+along.normalized()*.6).normalized() if down.length()>.05 else along.normalized()
@@ -360,7 +456,7 @@ func blade_connects(by: SectorActor) -> void:
 		halves.append(half)
 	upper_base=halves[0].global_transform
 	victim.visible=false
-	_make_cut_line(along.normalized() if along.length()>.01 else dir.cross(Vector3.UP))
+	_make_cut_line(along.normalized())
 	game.fx.sparks(cut_p,color,18,6.5)
 	game.play_sfx("blade_hit"); game.play_sfx("sword")
 	game.shake_amount=maxf(game.shake_amount,.25)
@@ -432,8 +528,10 @@ func _clear_cut() -> void:
 	_clear_halves()
 	if is_instance_valid(cut_line): cut_line.queue_free()
 	if is_instance_valid(killer): killer.cutscene=false
+	if is_instance_valid(victim): victim.cutscene=false
 	if has_meta("replayed"): remove_meta("replayed")
 	killer=null; victim=null; live=false
+	_blade_previous=PackedVector3Array(); _blade_contact={}; _cut_surfaces.clear(); _cut_requested=false
 
 # ---------------------------------------------------------------- pieces
 func _impact() -> void:
@@ -453,6 +551,16 @@ func _make_slug() -> void:
 	slug.global_position=muzzle
 	streak=MeshInstance3D.new(); var cyl:=CylinderMesh.new(); cyl.top_radius=.018; cyl.bottom_radius=.004; cyl.height=1.0; cyl.radial_segments=6
 	streak.mesh=cyl; streak.material_override=_glow(color,3.0,.55); add_child(streak)
+	streak.visible=false
+
+func _move_slug(progress: float) -> Vector3:
+	var p:=muzzle.lerp(target,_smooth(clampf(progress,0,1)))
+	var dir:=(target-muzzle).normalized()
+	if is_instance_valid(slug):
+		slug.global_position=p
+		if dir.length_squared()>.001: slug.look_at(p+dir,Vector3.UP if absf(dir.y)<.98 else Vector3.RIGHT)
+		_update_streak(muzzle,p)
+	return p
 
 func _update_streak(a: Vector3, b: Vector3) -> void:
 	if not is_instance_valid(streak): return

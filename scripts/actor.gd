@@ -4,6 +4,8 @@ class_name SectorActor
 const Data = preload("res://scripts/data.gd")
 const Specials = preload("res://scripts/specials.gd")
 const Robots = preload("res://scripts/robots.gd")
+const DroneSwarmScript = preload("res://scripts/drone_swarm.gd")
+const AirSupportScript = preload("res://scripts/air_support.gd")
 var game: Node
 var hero := true
 var hero_id := 0
@@ -23,6 +25,13 @@ var cadence := .4
 var special_base := 12.0
 var attack_timer := 0.0
 var special_timer := 0.0
+var drone_timer := 0.0
+var drone_swarm: Node3D
+var _drone_held := false
+var air_support_timer := 0.0
+var _support_chord := false
+var _special_held := false
+var _special_wait := -1.0
 var dodge_timer := 0.0
 var dodge_time := 0.0
 var invulnerable := 0.0
@@ -42,6 +51,7 @@ var target: SectorActor
 var auto_target: SectorActor  # current auto-aim lock (game.auto_aim), null when off or nothing in reach
 var upgrades := {}
 var model: Node3D
+var torso_mesh: MeshInstance3D  # robot body used to locate the blade's body-crossing cut
 var anim: AnimationPlayer
 var marker: MeshInstance3D
 var muzzle: Node3D
@@ -99,6 +109,7 @@ static var _hit_mat: StandardMaterial3D
 var weapon_nodes: Array[Node3D] = []
 var weapon_muzzles: Array[Node3D] = []
 var weapon_loads: Array[Node3D] = []  # a launcher's loaded round (Blender "Load_<id>"), hidden once it is fired
+var blade_markers: Array[Node3D] = []  # ordered samples along the katana's curved cutting edge
 var pad_bumpers := [false, false]
 var last_damage_type := "kinetic"
 var last_hit_from := Vector3.ZERO
@@ -229,7 +240,7 @@ func _enemy_limb(pivot_pos: Vector3, part_offset: Vector3, size: Vector3, materi
 func _make_enemy_visual() -> void:
 	model.scale=Vector3.ONE*body_scale()*1.25
 	var dark := _mat(Color("25282d")); var joint := _mat(Color("121820")); var eye := _mat(Color("ff593b"),true)
-	_part(Vector3(0,.65,0),Vector3(.45,.54,.32),dark,"enemy_torso")
+	torso_mesh=_part(Vector3(0,.65,0),Vector3(.45,.54,.32),dark,"enemy_torso")
 	_part(Vector3(0,1.06,0),Vector3(.46,.43,.43),dark,"enemy_head")
 	if _kit_mesh("enemy_head") == null: _part(Vector3(0,1.02,-.224),Vector3(.30,.07,.045),eye)
 	for s in [-1.0,1.0]:
@@ -304,6 +315,13 @@ func muzzle_position() -> Vector3:
 	if is_instance_valid(muzzle): return muzzle.global_position
 	return global_position+Vector3.UP*.88+aim*.58
 
+func blade_edge_points() -> PackedVector3Array:
+	var points:=PackedVector3Array()
+	for marker in blade_markers: points.append(marker.global_position)
+	if points.is_empty(): return points
+	points.append(muzzle_position())
+	return points
+
 # Flat direction the current gun's barrel points (grip -> muzzle); ZERO when there is no mounted gun.
 func barrel_dir() -> Vector3:
 	if not hero or weapon>=weapon_nodes.size() or not is_instance_valid(weapon_nodes[weapon]) or weapon>=weapon_muzzles.size() or not is_instance_valid(weapon_muzzles[weapon]): return Vector3.ZERO
@@ -347,6 +365,9 @@ func _mount_weapons(grip: Node3D) -> void:
 		for n in [node]+node.find_children("*","",true,false): n.owner=null  # detach from the kit scene before reparenting
 		node.get_parent().remove_child(node); grip.add_child(node); node.transform=Transform3D.IDENTITY
 		weapon_nodes.append(node); weapon_muzzles.append(node.find_child("Muzzle_*",true,false) as Node3D)
+		if w.kind=="melee":
+			for sample in node.find_children("BladeEdge_*","Node3D",true,false): blade_markers.append(sample)
+			blade_markers.sort_custom(func(a: Node3D,b: Node3D) -> bool: return a.name<b.name)
 		weapon_loads.append(node.find_child("Load_*",true,false) as Node3D)
 	kit.free()
 	_show_weapon()
@@ -556,6 +577,8 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(game) or game.state!="playing": return
 	attack_timer=maxf(0,attack_timer-delta); special_timer=maxf(0,special_timer-delta); dodge_timer=maxf(0,dodge_timer-delta)
+	air_support_timer=maxf(0,air_support_timer-delta)
+	drone_timer=maxf(0,drone_timer-delta)
 	invulnerable=maxf(0,invulnerable-delta); shield_time=maxf(0,shield_time-delta)
 	for k in buffs.keys():
 		buffs[k]-=delta
@@ -570,14 +593,7 @@ func _physics_process(delta: float) -> void:
 	_update_laser()
 	if swing_impact>0:
 		swing_impact-=delta
-		if swing_impact<=0:
-			swing_impact=-.0001
-			var w: Dictionary=loadout[weapon]
-			if cutscene and not game.killcam.live: game.killcam.blade_connects(self)  # replayed cut: no damage
-			elif w.kind=="melee":  # the weapon may have been swapped mid-swing: the cut is then dropped
-				if not cutscene: velocity+=aim*(8.0 if swing_power>1.2 else 3.5)  # step into the cut (big fumikomi step on shomen)
-				game.fire_melee(self,aim,cut_reach(w),melee_damage)
-				if cutscene: game.killcam.blade_connects(self)  # the kill cam caught this cut live: slice the robot
+		if swing_impact<=0: land_cut()
 	if swing_time>0:
 		swing_time-=delta
 		# trail only through the strike: from just before impact to shortly after it
@@ -585,10 +601,9 @@ func _physics_process(delta: float) -> void:
 		if swing_impact<=0: swing_impact-=delta
 		if not strike: trail_prev.clear()
 		elif weapon<weapon_nodes.size() and is_instance_valid(weapon_nodes[weapon]) and loadout[weapon].kind=="melee":
-			var tip:=muzzle_position()
-			var hilt:=weapon_nodes[weapon].global_position.lerp(tip,.18)
-			if trail_prev.size()==2: game.fx.blade_quad(trail_prev[0],trail_prev[1],hilt,tip,loadout[weapon].color,cutscene)
-			trail_prev=PackedVector3Array([hilt,tip])
+			var edge:=blade_edge_points()
+			if trail_prev.size()==edge.size(): game.fx.blade_ribbon(trail_prev,edge,loadout[weapon].color,cutscene)
+			trail_prev=edge
 	if is_instance_valid(body_node):
 		# chiburi (flick the blade clean) on drawing the katana and after standing still with it for a while
 		var blade_out: bool=not loadout.is_empty() and loadout[weapon].kind=="melee" and weapon<weapon_nodes.size() and is_instance_valid(weapon_nodes[weapon])
@@ -617,6 +632,13 @@ func _physics_process(delta: float) -> void:
 		bar.text="REVIVE  %d" % ceili(downed_time)
 		if downed_time<=0: dead=true; visible=false; game.check_defeat()
 		return
+	if hero and input_id>=0 and not cutscene: _drone_input()
+	if hero and input_id>=0 and move_lock and not cutscene:
+		var joy: int=game.joy_for(input_id)
+		var firing: bool=Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) if input_id==0 else joy>=0 and Input.get_joy_axis(joy,JOY_AXIS_TRIGGER_RIGHT)>.45
+		var special: bool=Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) if input_id==0 else joy>=0 and Input.get_joy_axis(joy,JOY_AXIS_TRIGGER_LEFT)>.45
+		_support_input(firing,special)
+		_special_held=special; _special_wait=-1.0
 	if move_t>=0: _run_move(delta)
 	if cutscene: last_move=Vector3.ZERO
 	elif move_lock: last_move=Vector3.ZERO
@@ -730,11 +752,70 @@ func _player_input(delta: float) -> void:
 		if is_instance_valid(auto_target) and game.settings.autoaim>=.5:
 			aim_point=Vector3(auto_target.global_position.x,GUN_HEIGHT,auto_target.global_position.z)
 	if dodge and dodge_timer<=0: _dodge()
-	if firing: _primary(delta)
-	else: charge=maxf(0,charge-delta*.35)
-	if special: _special()
+	_attack_input(firing,special,delta)
 	if input_id==0 and Input.is_action_pressed("interact") or input_id>0 and game.joy_for(input_id)>=0 and Input.is_joy_button_pressed(game.joy_for(input_id),JOY_BUTTON_X):
 		_try_revive(delta)
+
+# Both buttons/triggers take priority. A short grace period on right-click accepts either press order;
+# releasing either button rearms the chord. A held right button never leaks a special on release of the left.
+func _attack_input(firing: bool, special: bool, delta: float) -> void:
+	if _support_input(firing,special): return
+	if special and not _special_held: _special_wait=.12
+	if _special_wait>=0:
+		_special_wait-=delta
+		if _special_wait<=0 or not special:
+			_special_wait=-1.0; _special()
+	_special_held=special
+	if firing and not move_lock: _primary(delta)
+	else: charge=maxf(0,charge-delta*.35)
+
+func _support_input(firing: bool, special: bool) -> bool:
+	if firing and special:
+		_special_wait=-1.0
+		if not _support_chord: call_air_support()
+		_support_chord=true; _special_held=true
+		return true
+	_support_chord=false
+	return false
+
+func _drone_input() -> void:
+	var joy: int=game.joy_for(input_id)
+	var pressed: bool=Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE) if input_id==0 else joy>=0 and Input.is_joy_button_pressed(joy,JOY_BUTTON_RIGHT_STICK)
+	if pressed and not _drone_held: call_drone_swarm()
+	_drone_held=pressed
+
+func call_drone_swarm() -> bool:
+	if dead or downed or cutscene or not is_instance_valid(game) or game.state!="playing": return false
+	if is_instance_valid(game.killcam) and game.killcam.active: return false
+	if is_instance_valid(drone_swarm) and not drone_swarm.is_queued_for_deletion():
+		game.ui.weapon_tag(self,"DRONES  "+drone_swarm.status(),Data.COLORS[hero_id]); return false
+	if drone_timer>0:
+		game.ui.weapon_tag(self,"DRONES  %ds" % ceili(drone_timer),Data.COLORS[hero_id]); return false
+	drone_swarm=DroneSwarmScript.new(); drone_swarm.setup(game,self)
+	game.add_child(drone_swarm); drone_swarm.add_to_group("transient"); drone_swarm.add_to_group("drone_swarm")
+	drone_timer=Data.DRONE_COOLDOWN
+	game.ui.weapon_tag(self,"DRONE SWARM DEPLOYED",Data.COLORS[hero_id])
+	return true
+
+func call_air_support() -> bool:
+	if dead or downed or cutscene or not is_instance_valid(game) or game.state!="playing": return false
+	if is_instance_valid(game.killcam) and game.killcam.active: return false
+	if air_support_timer>0:
+		game.ui.weapon_tag(self,"AIR SUPPORT  %ds" % ceili(air_support_timer),Data.COLORS[hero_id])
+		return false
+	var goal: Vector3=game.mouse_plane(0.0) if input_id==0 else global_position+aim*10.0
+	if input_id<0 and is_instance_valid(target): goal=target.global_position
+	var to:=Vector3(goal.x-global_position.x,0,goal.z-global_position.z)
+	if to.length()<1.0: to=aim*7.0
+	if to.length()>18.0: to=to.normalized()*18.0
+	goal=global_position+to; goal.y=0
+	goal.x=clampf(goal.x,-20,20); goal.z=clampf(goal.z,-15,15)
+	var support=AirSupportScript.new()
+	support.setup(game,self,goal,aim)
+	game.add_child(support); support.add_to_group("transient"); support.add_to_group("air_support")
+	air_support_timer=Data.AIR_SUPPORT_COOLDOWN
+	game.ui.weapon_tag(self,"GUNSHIP INBOUND",Data.COLORS[hero_id])
+	return true
 
 func _companion_ai(delta: float) -> void:
 	ai_tick-=delta
@@ -760,8 +841,11 @@ func _companion_ai(delta: float) -> void:
 		else: last_move=Vector3.ZERO
 		_navigate(last_move)
 		_primary(delta)
-		# save the special for a crowd (or the Warden up close)
-		if special_timer<=0 and (Specials.crowd(game,global_position,5.0)>=3 or target.boss and v.length()<6): _special()
+		# Kestrel takes her shot from sniper range; the other operatives save their move for a nearby crowd.
+		if special_timer<=0:
+			var ready: bool=Specials.crowd(game,global_position,5.0)>=3 or target.boss and v.length()<6
+			if hero_id==5: ready=Specials.nearest(self,global_position,28.0,3).size()>=3 or target.boss and not target.dead and v.length()<28 and game.line_of_sight(global_position,target.global_position)
+			if ready: _special()
 	elif is_instance_valid(human):
 		var v:=human.global_position-global_position; v.y=0
 		last_move=v.normalized() if v.length()>3 else Vector3.ZERO
@@ -893,6 +977,16 @@ func _primary(delta: float) -> void:
 		if w.get("bolt",false): bolt_timer=.36
 	game.shot_fx(self,w)
 
+# Normal gameplay uses the strike key; a filmed swing may land earlier when its animated edge touches.
+func land_cut() -> void:
+	swing_impact=-.0001
+	var w: Dictionary=loadout[weapon]
+	if cutscene and not game.killcam.live: game.killcam.blade_connects(self)  # replay: hold damage
+	elif w.kind=="melee":
+		if not cutscene: velocity+=aim*(8.0 if swing_power>1.2 else 3.5)
+		game.fire_melee(self,aim,cut_reach(w),melee_damage)
+		if cutscene: game.killcam.blade_connects(self)
+
 # The blade arc for the current cut: the shomen finisher reaches further on a narrower arc.
 func cut_reach(w: Dictionary) -> Dictionary:
 	var finisher: bool=swing_power>1.2
@@ -942,7 +1036,7 @@ func take_damage(amount: float, source: SectorActor, from_pos: Vector3, damage_t
 		if shield_health<=0: shield_time=0
 		game.flash(global_position+Vector3.UP,Color("ffc759"),.25)
 		return
-	if not hero and enemy_id==4 and is_instance_valid(source):
+	if not hero and enemy_id==4 and is_instance_valid(source) and damage_type!="precision":
 		var to_source:=(source.global_position-global_position).normalized()
 		if aim.dot(to_source)>.25: amount*=.3
 	if hero: amount*=1.0-Data.upgrade_value(self,"armor")*.08

@@ -52,7 +52,7 @@ func run() -> void:
  await _case(game,2,5.0,"Marshal Dead Eye")
  await _case(game,3,4.0,"Nova Halo Array")
  await _case(game,4,4.0,"Hex Singularity")
- await _case(game,5,1.6,"Kestrel Orbital Lance")
+ await _case(game,5,5.0,"Kestrel Ghostline")
  game.queue_free(); await create_timer(.1).timeout
  if passed!=7: print("SPECIALS FAIL: %d of 7 cases finished" % passed); quit(1); return
  print("SPECIALS PASS")

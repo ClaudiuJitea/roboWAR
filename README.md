@@ -37,8 +37,12 @@ You need a GPU with Vulkan support for the Forward+ renderer.
 - **Squad play:** solo, with an AI companion, or local co-op on keyboard + pad or two pads. Downed partners can be revived.
 - **Progression:** 17 upgrades between waves and five timed power-ups.
 - **Kill cams:** every 9th kill and the boss get a cinematic: bullet cam, impact zoom, blast crane or blade orbit.
+- **Air support:** every operative can call a visible gunship strafe at the cursor with both mouse buttons (both triggers on a pad), on a separate 35-second cooldown.
+- **Drone swarm:** middle-click deploys three armored quad-rotors for every operative (right-stick click on a pad). They sweep enemies with ray guns for five seconds, then spread out into kamikaze attacks. Unused drones hover beside you until a new enemy appears. Separate 40-second cooldown; one active swarm per player.
 - **Effects:** voxel shattering, explosions with shockwaves, disintegration under energy weapons, shell casings and tracers.
 - **Audio:** realistic gunfire, sound effects and music generated with ElevenLabs.
+
+<img src="evidence/drone_swarm.png" alt="Drone swarm: armored quad-rotor, ray-gun sweep, terminal dives and kamikaze impact" width="100%">
 
 ## The Six
 
@@ -51,7 +55,7 @@ You need a GPU with Vulkan support for the Forward+ renderer.
 | **Marshal** | Gunslinger. The law of the sector, one heavy round at a time | Hand cannon (heavy revolver) | **Dead Eye**: time slows, up to 8 robots are marked, one critical shot each |
 | **Nova** | Rail specialist. Turns a crowd into a star of light | Twin-rail energy rifle | **Halo Array**: jumps and fires two star volleys of 8 piercing rail beams |
 | **Hex** | Arc caster. Bends space and lightning with armoured gauntlets | Arc gauntlets | **Singularity**: a black hole pulls robots together, then collapses into arc lightning |
-| **Kestrel** | Marksman. Watches from far away and strikes from the sky | Bolt-action sniper with laser sight | **Orbital Lance**: paints an 18 m lane and calls 10 orbital strikes down it |
+| **Kestrel** | Marksman. Finds the weak point and shoots through the crowd | Bolt-action sniper with laser sight | **Ghostline**: marks weak points and fires up to three charged critical shots that pierce robots and frontal shields, with a slow-motion finish |
 
 Operatives are invulnerable while their special plays.
 
@@ -110,6 +114,8 @@ Elites always drop a power-up, and bosses drop four pickups.
 | WASD | Move |
 | Mouse | Aim |
 | Left / right mouse button | Primary / special |
+| Left + right mouse buttons together | Gunship air support at the cursor (35 s cooldown) |
+| Middle mouse button | Deploy three ray-gun / kamikaze drones (40 s cooldown) |
 | Space | Dodge |
 | Q / R, 1–8, mouse wheel | Previous / next / pick weapon |
 | E (hold) | Revive a downed partner |
@@ -120,6 +126,8 @@ Elites always drop a power-up, and bosses drop four pickups.
 | --- | --- |
 | Left / right stick | Move / aim |
 | Right / left trigger | Primary / special |
+| Both triggers together | Gunship air support along your aim (35 s cooldown) |
+| Right stick click | Deploy three ray-gun / kamikaze drones (40 s cooldown) |
 | South / west face button | Dodge / revive |
 | Left / right bumper | Previous / next weapon |
 | Menu button | Pause |
@@ -145,7 +153,7 @@ godot --headless --path . --export-release Windows exports/windows/Sector03.exe
 ### Checks
 
 ```bash
-for t in gameplay roster revive archetypes progression aim_line cinematic specials; do
+for t in gameplay roster revive archetypes progression aim_line cinematic killcam_timing blade_path specials kestrel air_support drone_swarm; do
   godot --headless --path . --script res://tests/$t.gd
 done
 ```
@@ -177,7 +185,7 @@ ffmpeg -i /tmp/gameplay.avi -vf "fps=15,scale=960:-1" -c:v libwebp -quality 60 -
 ```
 assets/        models (.glb), audio (.ogg), fonts, menu portraits, arena layouts
 scenes/        main scene
-scripts/       game logic: game, actor, robots, specials, projectiles, fx, kill cam, ui, campaign, data (balance)
+scripts/       game logic: game, actor, robots, specials, air support, drone swarm, projectiles, fx, kill cam, ui, campaign, data (balance)
 source_art/    Blender and Python generators for every asset, plus raw ElevenLabs responses
 tests/         headless gameplay checks and capture scripts
 docs/          design notes, verification log, README media

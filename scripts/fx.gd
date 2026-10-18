@@ -176,18 +176,24 @@ func slash(center: Vector3, dir: Vector3, radius: float, c: Color) -> void:
 # One segment of a blade swing trail: the quad between last frame's and this frame's hilt/tip, fading fast.
 # real_time: fades on the wall clock (kill cam replay), so the trail clears even while time is nearly frozen.
 func blade_quad(h0: Vector3, t0: Vector3, h1: Vector3, t1: Vector3, c: Color, real_time := false) -> void:
+	blade_ribbon(PackedVector3Array([h0,t0]),PackedVector3Array([h1,t1]),c,real_time)
+
+# All curved-edge segments share one mesh/tween, keeping the trail cost the same as a straight blade.
+func blade_ribbon(previous: PackedVector3Array, edge: PackedVector3Array, c: Color, real_time := false) -> void:
+	if edge.size()<2 or previous.size()!=edge.size(): return
 	var st := SurfaceTool.new(); st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var hot := Color(c.r * 1.8, c.g * 1.8, c.b * 1.8, .7); var clear := Color(c.r, c.g, c.b, 0.0)
-	# tapered: transparent at the hilt, bright along the tip edge
-	for pair in [[h0, clear], [t0, hot], [t1, hot], [h0, clear], [t1, hot], [h1, clear]]:
-		st.set_color(pair[1]); st.add_vertex(pair[0])
+	for i in range(edge.size()-1):
+		var a:=clear.lerp(hot,float(i)/(edge.size()-1)); var b:=clear.lerp(hot,float(i+1)/(edge.size()-1))
+		for pair in [[previous[i],a],[previous[i+1],b],[edge[i+1],b],[previous[i],a],[edge[i+1],b],[edge[i],a]]:
+			st.set_color(pair[1]); st.add_vertex(pair[0])
 	var m := MeshInstance3D.new(); m.mesh = st.commit()
 	var mat := StandardMaterial3D.new(); mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED; mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED; mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD; mat.vertex_color_use_as_albedo = true
 	mat.albedo_color = Color(1, 1, 1, 1); m.material_override = mat
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; m.add_to_group("fx_temp"); add_child(m)
 	var tw := m.create_tween(); tw.set_ignore_time_scale(real_time); tw.tween_property(mat, "albedo_color:a", 0.0, .4 if real_time else .13); tw.tween_callback(m.queue_free)
-	if randf() < .4: glow.emit(t1, (t1 - t0) * 8.0 + _rand_dir() * .4, .18, .04, c * 3.0, 0, 3, 0, 0)
+	if randf() < .4: glow.emit(edge[-1], (edge[-1] - previous[-1]) * 8.0 + _rand_dir() * .4, .18, .04, c * 3.0, 0, 3, 0, 0)
 
 func dust(p: Vector3) -> void:
 	if _amount() < .4: return

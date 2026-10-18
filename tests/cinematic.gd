@@ -10,7 +10,7 @@ func run() -> void:
  var game=load("res://scenes/main.tscn").instantiate(); root.add_child(game)
  game.settings.killcam=0.0
  game.selected=[5,0]; game.mode=1; game.start_run()
- for h in game.heroes: h.invulnerable=999
+ for h in game.heroes: h.invulnerable=999; h.special_timer=999  # specials have their own deliberate time beats
  var me=game.heroes[0]
  var t0:=Time.get_ticks_msec(); var last:=t0; var slow_ms:=0; var slow_after_first:=0; var tracked:=false; var first_kill_at:=-1
  while Time.get_ticks_msec()-t0<14000:

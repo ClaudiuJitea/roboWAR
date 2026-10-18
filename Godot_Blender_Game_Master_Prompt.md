@@ -108,7 +108,7 @@ Create a shared humanoid base, skeleton, and material system; then give each fig
 | Marshal | Yellow/gold accents, compact sci-fi pistol | Fast, accurate pistol fire | Timed deployable shield that blocks enemy projectiles, with visible health |
 | Nova | Cyan/teal accents, long twin-rail weapon | Charged piercing rail shot and bright cyan trail | Chain-lightning pulse linking nearby enemies |
 | Hex | Purple accents, glowing gauntlets, energy rings and holographic forms | Traveling purple energy bolts | Temporary gravity field that slows and pulls enemies |
-| Kestrel | Red accents, long scoped rifle | Slower high-damage precision shots | Charged penetrating shot with a targeting line |
+| Kestrel | Red accents, long scoped rifle | Slower high-damage precision shots | Ghostline: mark weak points and fire up to three charged, armour-piercing sniper shots with a slow-motion finish |
 
 Names, colors, and main weapon silhouettes come from D. The ability behavior above is this project's design specification. Preserve color identity in visor emission, weapon accents, selection UI, and effects. Ground markers distinguish players independently of fighter colors: player one yellow, player two cyan, companion dashed or otherwise clearly distinct.
 
@@ -143,6 +143,8 @@ Deliver the .blend sources, exported .glb assets, production scripts, and front/
 ## 7. Controls and movement
 
 Keyboard/mouse defaults: WASD move; mouse aim projected onto the gameplay plane; left mouse primary attack; right mouse special ability; Space dodge; E interact/revive; Escape pause. Normalize diagonal input. Handle ray intersections and obstructions robustly so aim does not jump when the mouse passes over walls.
+
+All six operatives also have gunship air support, aimed at the cursor with left + right mouse buttons together, or along the aim with both controller triggers. Give it a separate 35-second cooldown and HUD status. Prioritize the chord over individual attacks, accept either button press order, and never repeat the call while both remain held. The player keeps moving and may call support during an operative special. Show the aircraft strafing, tracers and ordnance, and protect teammates from friendly fire.
 
 Controller defaults: left stick movement; right stick aim; right trigger primary attack; left trigger special ability; south face button dodge; west face button interact/revive; menu button pause. Preserve last valid aim when the stick returns to its dead zone. Provide remapping and sensitivity settings.
 
@@ -236,3 +238,7 @@ The work is complete when:
 - Source assets and production scripts allow the project to be edited and reproduced.
 
 Start by inspecting the attached images and available Godot/Blender MCP environment. Then build the game. Make routine implementation decisions independently, document material assumptions, and ask only when missing information or access blocks necessary work.
+
+### Shared drone swarm
+
+Middle mouse (right-stick click on a pad) deploys three graphite quad-rotors with amber armor panels, cyan optics and twin ray guns. They distribute fire across visible enemies for five seconds, then home into separate survivors and explode. Unused drones follow above their operative indefinitely until a new enemy appears, then immediately dive. Each operative owns a separate 40-second cooldown and one active swarm; drones consume no ammunition or character-special cooldown. Rays respect cover, splash only damages enemies, boss damage is scaled, and hovering drones allow waves/upgrades to proceed.

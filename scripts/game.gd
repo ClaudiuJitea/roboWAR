@@ -210,7 +210,7 @@ func _load_chapter(n: int) -> void:
   h.global_position=spots[mini(i,1)]; h.velocity=Vector3.ZERO; h.end_move()
   if h.dead or h.downed:
    h.dead=false; h.downed=false; h.visible=true; h.revive_progress=0; h._play_anim("revive")
-  h.hp=maxf(h.hp,h.max_hp*.6); h.special_timer=0; h.buffs.clear(); h._update_bar()
+  h.hp=maxf(h.hp,h.max_hp*.6); h.special_timer=0; h.air_support_timer=0; h.drone_timer=0; h.buffs.clear(); h._update_bar()
  camera_center=Vector3(-1,0,1)
  state="briefing"; ui.show_briefing(chapter)
 
@@ -240,7 +240,9 @@ func radio(moment: String) -> void:
 func _clear_run() -> void:
  if is_instance_valid(killcam): killcam.stop()
  Engine.time_scale=1.0; hitstop_until=0
- for h in heroes: if is_instance_valid(h): h.queue_free()
+ for h in heroes:
+  if is_instance_valid(h):
+   h.end_move(); h.set_process(false); h.set_physics_process(false); h.queue_free()
  for e in enemies: if is_instance_valid(e): e.queue_free()
  heroes.clear(); enemies.clear(); boss_actor=null; shutting_down=false
  for p in get_tree().get_nodes_in_group("transient"): p.queue_free()
@@ -328,7 +330,7 @@ func _process(delta: float) -> void:
   if spawn_timer<=0 and enemies.size()<85:
    _spawn_enemy(Campaign.pick(wave_pool,rng)); spawn_left-=1
    spawn_timer=3.5 if is_instance_valid(boss_actor) else maxf(.15,.75-wave*.055)  # escorts trickle in during a boss
- elif enemies.is_empty() and wave_wait<=0:
+ elif enemies.is_empty() and wave_wait<=0 and not _combat_action_active():
   wave_wait=9999
   if campaign:
    if wave>=4: _chapter_clear()
@@ -338,6 +340,14 @@ func _process(delta: float) -> void:
   else: _next_wave()
  _camera_update(delta)
  ui.update_hud()
+
+func _combat_action_active() -> bool:
+ if is_instance_valid(killcam) and killcam.active: return true
+ for h in heroes:
+  if is_instance_valid(h) and h.move_t>=0: return true
+ for swarm in get_tree().get_nodes_in_group("drone_swarm"):
+  if not swarm.is_queued_for_deletion() and swarm.attacking(): return true
+ return not get_tree().get_nodes_in_group("air_support").is_empty()
 
 func _camera_update(delta: float) -> void:
  if not is_instance_valid(camera): return
@@ -558,9 +568,8 @@ func enemy_killed(e: SectorActor) -> void:
  team_xp+=int(spec.xp)
  enemies.erase(e)
  _drops(e)
- _kill_effects(e)
  if e.boss: _boss_down(e)
- var mode: String={"explosive":"explosive","energy":"energy"}.get(e.last_damage_type,"kinetic")
+ var mode: String={"explosive":"explosive","energy":"energy","air_support":"explosive","drone_ray":"energy","drone_blast":"explosive"}.get(e.last_damage_type,"kinetic")
  # freeze-frames are rare accents: always on the boss, otherwise an occasional heavy kill with a long cooldown
  # the first robot destroyed in a run gets a short slow-motion beat, then cinematics are off for the run
  if cinematic: hitstop(.35)
@@ -568,13 +577,14 @@ func enemy_killed(e: SectorActor) -> void:
  var away: Vector3=e.global_position-e.last_hit_from; away.y=0
  var boom:=func():
   if not is_instance_valid(e): return
+  _kill_effects(e)  # chain explosions and on-kill effects land with the filmed impact
   fx.disintegrate(e.global_position,e.model.scale.x if is_instance_valid(e.model) else 1.25,mode,away.normalized() if away.length_squared()>.01 else Vector3.ZERO,e.last_hit_color)
   play_sfx("destroyed")  # ElevenLabs robot-destroyed variants
   play_sfx("disintegrate" if mode=="energy" else ("death" if mode=="explosive" else "shatter"))  # quieter type layer
   e.queue_free()
  # every 9th kill: the kill cam may hold the robot intact until its shot lands on screen, then call boom
  # (not for kills made by a special move in progress: those already have their own staging)
- var by_special: bool=is_instance_valid(e.last_attacker) and e.last_attacker.move_t>=0
+ var by_special: bool=e.last_damage_type in ["air_support","drone_ray","drone_blast"] or is_instance_valid(e.last_attacker) and e.last_attacker.move_t>=0
  if is_instance_valid(killcam) and not by_special and killcam.on_kill(e,kills,boom): return
  boom.call()
 

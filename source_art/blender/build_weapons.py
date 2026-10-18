@@ -535,7 +535,18 @@ def guns(col):
             p._commit(t, GOLD, Matrix.Translation((0, y, 0)) @ Matrix.Rotation(.45 if ax == 'Z' else -.45, 4, ax), smooth=False)
     p.box((0, .41, 0), (.07, .04, .064), GOLD, .008)
     p.box((0, .432, 0), (.05, .008, .046), INSET, .003)
-    out += p.finish(col, tip)  # muzzle = blade tip (swing trail); no baked tilt: the pose solver aims the blade
+    sword = p.finish(col, tip)  # muzzle = blade tip; no baked tilt: the pose solver aims the blade
+    # Contact/trail samples follow the actual curved cutting edge, rather than a grip-to-tip chord.
+    for i in range(N + 1):
+        t = i / N
+        x, y = edge(t, -(width(t) + .014))
+        sample = bpy.data.objects.new('BladeEdge_%02d' % i, None)
+        sample.empty_display_size = .015
+        col.objects.link(sample)
+        sample.parent = sword[0]
+        sample.location = (x, y, 0)
+        sword.append(sample)
+    out += sword
 
     p = Part('W_pistol')  # Marshal: chunky game hand cannon (revolver), traced from the reference side view at 1.9 mm
     # per pixel, scaled 1.16x; grip top = the fist, the 'pistol' stance's left glove wraps the right fist

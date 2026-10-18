@@ -8,7 +8,7 @@ extends RefCounted
 #   2 Marshal    DEAD EYE          time slows, up to 8 robots are marked, then a crit for each in quick succession
 #   3 Nova    HALO ARRAY        a jump and two star volleys of piercing rail beams
 #   4 Hex   SINGULARITY       a black hole at the aim point pulls robots together, then collapses into arc lightning
-#   5 Kestrel   ORBITAL LANCE     paints a lane with the laser; a barrage of strikes runs down it
+#   5 Kestrel   GHOSTLINE        three charged weak-point shots, piercing armour and every robot behind the mark
 
 const Data = preload("res://scripts/data.gd")
 const BOSS_SCALE := .4  # specials clear crowds; they do not delete the Warden
@@ -24,7 +24,7 @@ static func start(a) -> void:
 		2: _dead_eye(a)
 		3: _halo(a)
 		4: _singularity(a)
-		5: _orbital(a)
+		5: _ghostline(a)
 	a.move_events.sort_custom(func(x,y): return x[0]<y[0])
 
 # ---------------------------------------------------------------- helpers
@@ -330,44 +330,66 @@ static func _singularity(a) -> void:
 		if is_instance_valid(s.orb): s.orb.queue_free()
 	a.move_at(2.3,collapse)
 
-# ---------------------------------------------------------------- 5 Kestrel: Orbital Lance
-static func _orbital(a) -> void:
-	var g=a.game; var mul:=power(a); var c: Color=Data.COLORS[5]
-	tag(a,"ORBITAL LANCE")
-	var dir:=flat(a.aim).normalized()
-	var start: Vector3=flat(a.global_position)+dir*1.5
-	# the lane runs 18 m or to the arena edge
-	var length:=18.0
-	for axis in [[dir.x,start.x,22.5],[dir.z,start.z,17.5]]:
-		if absf(axis[0])>.001: length=minf(length,((axis[2] if axis[0]>0 else -axis[2])-axis[1])/axis[0])
-	length=maxf(length,2.0)
-	a.invulnerable=.5; a.move_end=.85+10*.07+.3
-	var strip:=MeshInstance3D.new(); var box:=BoxMesh.new(); box.size=Vector3(.35,.02,1.0); strip.mesh=box
-	var mat:=_glow_mat(Color(1,.2,.25),.6,2.0); mat.blend_mode=BaseMaterial3D.BLEND_MODE_ADD; strip.material_override=mat
-	strip.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	g.add_child(strip); strip.add_to_group("transient")
-	strip.global_basis=Basis.looking_at(dir,Vector3.UP); strip.scale=Vector3(1,1,.01); strip.global_position=start+Vector3.UP*.06
-	var s:={"strip":strip}
+# ---------------------------------------------------------------- 5 Kestrel: Ghostline
+static func _ghostline(a) -> void:
+	var g=a.game; var mul:=power(a); var c: Color=a.loadout[0].color
+	var marks: Array=nearest(a,a.global_position,30.0,99)
+	var score:=func(e) -> float:
+		var to:=flat(e.global_position-a.global_position)
+		return a.aim.dot(to.normalized())*3.0-to.length()*.015+(.2 if e.boss else 0.0)
+	marks.sort_custom(func(x,y): return score.call(x)>score.call(y))
+	marks=marks.slice(0,3)
+	var props: Array=[]
+	tag(a,"GHOSTLINE")
+	a.move_end=1.95; a.invulnerable=2.05; a.move_steer=true
+	g.play_sfx("windup"); a._play_anim("special",.3)
+	for i in range(marks.size()):
+		var reticle:=Node3D.new(); g.add_child(reticle); reticle.add_to_group("transient"); reticle.add_to_group("ghostline_marks")
+		var ring:=MeshInstance3D.new(); var torus:=TorusMesh.new(); torus.inner_radius=.22; torus.outer_radius=.27
+		ring.mesh=torus; ring.rotation.x=PI/2; ring.material_override=_glow_mat(c,.9,2.0)
+		(ring.material_override as StandardMaterial3D).no_depth_test=true
+		ring.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; reticle.add_child(ring)
+		for axis in [Vector3.RIGHT,Vector3.UP]:
+			for sign in [-1.0,1.0]:
+				var tick:=MeshInstance3D.new(); var box:=BoxMesh.new(); box.size=Vector3(.18,.025,.025)
+				tick.mesh=box; tick.position=axis*sign*.35; tick.rotation.z=PI/2 if axis==Vector3.UP else 0
+				tick.material_override=ring.material_override; tick.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; reticle.add_child(tick)
+		var label:=Label3D.new(); label.text="0%d" % (i+1); label.font_size=22; label.pixel_size=.009
+		label.position=Vector3(.4,.15,0); label.modulate=c; label.no_depth_test=true; reticle.add_child(label)
+		props.append(reticle)
 	a.move_cleanup=func() -> void:
-		if is_instance_valid(s.strip): s.strip.queue_free()
-	g.play_sfx("windup"); a._play_anim("special",.35)
+		for prop in props: if is_instance_valid(prop): prop.queue_free()
 	a.move_tick=func(_delta: float) -> void:
-		if not is_instance_valid(s.strip): return
-		var lane: MeshInstance3D=s.strip
-		var k: float=clampf(a.move_t/.45,.01,1.0)  # the laser sweeps out to the end of the lane
-		lane.scale=Vector3(1,1,length*k)
-		lane.global_position=start+dir*length*k*.5+Vector3.UP*.06
-		mat.albedo_color.a=.45+.35*sin(a.move_t*40.0)
-	a.move_at(.45,func() -> void: a.move_lock=false)
-	for i in range(10):
-		var p: Vector3=start+dir*length*(i+.5)/10.0
-		var strike:=func() -> void:
-			g._beam(p+Vector3.UP*22.0,p,Color(1,.3,.35),.22,.25)
-			g.fx.explosion(p,2.4,c)
-			for e in nearest(a,p,2.6,99,false):
-				var d: float=flat(e.global_position-p).length()
-				hit(a,e,a.damage*.85*mul*lerpf(1.0,.5,d/2.6),"explosive",4.0,p)
-			if i%2==0: g.play_sfx("explosion")
-			g.shake_amount=maxf(g.shake_amount,.4)
-			if i==0: g.hitstop(.1)
-		a.move_at(.85+i*.07,strike)
+		for i in range(props.size()):
+			var prop=props[i]; var enemy=marks[i]
+			if not is_instance_valid(prop): continue
+			prop.visible=is_instance_valid(enemy) and not enemy.dead
+			if not prop.visible: continue
+			prop.global_position=enemy.global_position+Vector3.UP*enemy.body_scale()*1.05
+			prop.look_at(g.camera.global_position,Vector3.UP)
+			prop.scale=Vector3.ONE*(.85+.15*sin(a.move_t*12.0))
+		if a.move_t<.68: g.fx.charge_orb(a.muzzle_position(),a.move_t/.68,c)
+	for i in range(3):
+		var shot:=func() -> void:
+			var enemy=marks[i%marks.size()] if not marks.is_empty() else null
+			if not is_instance_valid(enemy) or enemy.dead:
+				var remaining: Array=nearest(a,a.global_position,30.0,1)
+				enemy=remaining[0] if not remaining.is_empty() else null
+			var dir: Vector3=flat(enemy.global_position-a.global_position).normalized() if enemy!=null else a.aim
+			face(a,dir)
+			var muzzle: Vector3=a.muzzle_position()
+			var trace: Array=g.trace_shot(a,a.global_position+Vector3.UP*.88,dir,34.0,999,.16)
+			for contact in trace[0]:
+				hit(a,contact[0],a.loadout[0].damage*2.0*mul,"precision",3.0,contact[1]-dir,true)
+				g.fx.sparks(contact[1]+Vector3.UP*.3,c,10,5.5)
+			var end: Vector3=trace[1]; end.y=muzzle.y
+			g._beam(muzzle,end,c,.11,.22); g._beam(muzzle,end,Color.WHITE,.028,.13)
+			g.fx.muzzle(muzzle,dir,c,1.8)  # the shared bolt timer ejects the spent case on cycling
+			g.fx._ring(a.global_position,c,1.1,.2)
+			g.play_sfx("sniper"); a._play_anim("attack"); a.recoil_kick=.15; a.bolt_timer=.17
+			g.shake_amount=maxf(g.shake_amount,.22)
+			var cleared: bool=not trace[0].is_empty() and nearest(a,a.global_position,30.0,1).is_empty()
+			if not trace[0].is_empty() and (i==2 or cleared): g.hitstop(.22)
+			if cleared:  # finish on the last real hit instead of firing empty rounds at a cleared battlefield
+				a.move_events.clear(); a.move_end=a.move_t+.12; a.invulnerable=.2
+		a.move_at(.7+i*.4,shot)

@@ -7,7 +7,7 @@ func _initialize() -> void:
 func run() -> void:
  var game=load("res://scenes/main.tscn").instantiate(); root.add_child(game)
  # [hero, crowd radius, move time to capture at, file name]
- var plan:=[[0,3.2,.9,"hurricane"],[1,5.5,.32,"hundred_cuts"],[1,2.4,.3,"kaiten"],[2,5.0,.45,"dead_eye"],[3,4.0,.42,"halo"],[4,4.0,1.4,"singularity"],[5,2.0,1.05,"orbital"]]
+ var plan:=[[0,3.2,.9,"hurricane"],[1,5.5,.32,"hundred_cuts"],[1,2.4,.3,"kaiten"],[2,5.0,.45,"dead_eye"],[3,4.0,.42,"halo"],[4,4.0,1.4,"singularity"],[5,5.0,1.14,"ghostline"]]
  var shots: Array[Image]=[]
  for step in plan:
   game.selected=[step[0],0]; game.mode=0; game.start_run(); game.spawn_left=0; game.wave_wait=9999

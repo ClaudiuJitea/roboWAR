@@ -2,7 +2,7 @@ extends SceneTree
 # Kill cam: every 9th kill runs a cinematic picked by how the robot died (bullet cam / impact zoom for guns,
 # blast crane for explosives, blade orbit for the katana), then hands back to the gameplay camera at full speed.
 # Saves evidence/killcam_<style>.png (five frames across each shot). Also checks the shot eases: time slows
-# gradually at the start and is back near full speed just before the end (no hard cuts).
+# immediately to preserve the action during setup, and recovers before the camera hands back (no camera cuts).
 
 func _initialize() -> void:
  call_deferred("run")
@@ -10,6 +10,7 @@ func _initialize() -> void:
 func shoot_nine(game, h, w: int, dmg_type: String) -> void:
  h.set_weapon(w)
  for k in range(9):
+  if k==8: game.fx.clear()  # isolate the filmed victim from debris left by the eight setup kills
   game._spawn_enemy(0); var e=game.enemies[-1]
   e.global_position=h.global_position+Vector3(-3.0+k*.2,0,-6.0); e.speed=0; e.attack_timer=99
   await physics_frame
@@ -34,11 +35,11 @@ func run() -> void:
   assert(game.killcam.style==step[3],"style %s expected, got %s" % [step[3],game.killcam.style])
   assert(not game.camera.current,"kill cam camera takes over")
   var frames: Array[Image]=[]
-  var total: float=game.killcam.DURATION[step[3]]
-  var marks:=[.35,total*.3,total*.5,total*.7,total-.45]  # easing in, the shot, easing out
+  var total: float=game.killcam.EASE_IN+game.killcam.DURATION[step[3]]
+  var marks:=[.35,game.killcam.EASE_IN+.4,game.killcam.EASE_IN+1.2,total*.7,total-.45]
   var start:=Time.get_ticks_msec()
   await process_frame
-  assert(Engine.time_scale>.6,"time slows gradually at the start, not with a cut (%.2f)" % Engine.time_scale)
+  assert(Engine.time_scale<=game.killcam.SETUP_SCALE,"action waits while the camera moves in (%.3f)" % Engine.time_scale)
   var vp_cam: Camera3D=root.get_viewport().get_camera_3d()
   var prev: Vector3=vp_cam.global_position if vp_cam else Vector3.ZERO
   var max_step:=0.0; var steps:=0.0; var n:=0

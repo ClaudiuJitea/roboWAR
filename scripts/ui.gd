@@ -212,10 +212,14 @@ func show_selection() -> void:
 	if game.mode==3:
 		_row(card,"Move / aim","Left stick / right stick")
 		_row(card,"Fire","Right trigger, special on left trigger")
+		_row(card,"Air support","Both triggers together")
+		_row(card,"Drone swarm","Click right stick")
 	else:
 		_row(card,"Move","W A S D")
 		_row(card,"Aim","Mouse")
 		_row(card,"Fire","Left click, special on right click")
+		_row(card,"Air support","Left + right click together")
+		_row(card,"Drone swarm","Middle mouse click")
 	_row(card,"Dodge","Space  /  south button")
 	_row(card,"Weapons","1 signature, 2-8 guns, Q / R or wheel  /  bumpers")
 	if game.mode==1:
@@ -396,8 +400,10 @@ func _player_card(h: SectorActor, index: int) -> Dictionary:
 	var ammo_key:=_label(wrow,"AMMO ",8,hud_pal.muted)
 	var ammo_label:=_label(wrow,"",11,hud_pal.ink,true)
 	var status:=_label(v,"",8,hud_pal.muted)
+	var support:=_label(v,"",8,hud_pal.muted)
+	var drones:=_label(v,"",8,hud_pal.muted)
 	var buffs:=_label(v,"",9,hud_pal.ink,true); buffs.visible=false
-	return {"actor":h,"color":color,"hp":hp_label,"segs":segs,"weapon":weapon_label,"ammo":ammo_label,"ammo_key":ammo_key,"status":status,"buffs":buffs}
+	return {"actor":h,"color":color,"hp":hp_label,"segs":segs,"weapon":weapon_label,"ammo":ammo_label,"ammo_key":ammo_key,"status":status,"support":support,"drones":drones,"buffs":buffs}
 
 func update_hud() -> void:
 	if not is_instance_valid(hud): return
@@ -423,6 +429,7 @@ func update_hud() -> void:
 		if h.downed:
 			card.hp.text="DOWN"; card.ammo_key.text=""; card.ammo.text="%ds" % ceili(h.downed_time)
 			card.status.text="DOWNED  -  TEAMMATE HOLDS E / WEST BUTTON TO REVIVE"
+			card.support.text=""; card.drones.text=""
 			continue
 		card.hp.text="OUT" if h.dead else "%d" % ceili(h.hp)
 		card.ammo_key.text="AMMO "
@@ -434,6 +441,13 @@ func update_hud() -> void:
 		var dodge: String="READY" if h.dodge_timer<=0 else "%ds" % ceili(h.dodge_timer)
 		var shield: String=("    SHIELD %d" % ceili(h.shield_health)) if h.hero_id==2 and h.shield_time>0 else ""
 		card.status.text="%s: %s    DODGE: %s%s" % [Data.SPECIALS[h.hero_id].to_upper(),special,dodge,shield]
+		var support: String="READY" if h.air_support_timer<=0 else "%ds" % ceili(h.air_support_timer)
+		var chord: String="LMB + RMB" if h.input_id==0 else "BOTH TRIGGERS"
+		card.support.text="AIR SUPPORT: %s%s" % [support,"    "+chord if h.input_id>=0 else ""]
+		var drone_status: String="READY" if h.drone_timer<=0 else "%ds" % ceili(h.drone_timer)
+		if is_instance_valid(h.drone_swarm) and not h.drone_swarm.is_queued_for_deletion(): drone_status=h.drone_swarm.status()
+		var drone_key: String="MMB" if h.input_id==0 else "R-STICK CLICK"
+		card.drones.text="DRONES: %s%s" % [drone_status,"    "+drone_key if h.input_id>=0 else ""]
 		# running power-ups with their seconds left, in the first one's colour
 		var parts: Array[String]=[]
 		for k in Data.TIMED_BUFFS:
